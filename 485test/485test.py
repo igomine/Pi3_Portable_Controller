@@ -9,6 +9,8 @@ import serial
 import time
 from struct import pack, unpack
 import RPi.GPIO as gpio
+import random
+
 
 gpio.setmode(gpio.BCM)
 gpio.setup(21, gpio.OUT)
@@ -29,12 +31,42 @@ if rs485tometer.isOpen() is False:
 
 
 cmd1_head = b'UUUU2'
-cmd2_address = b'\x02'
-meter_float = 1000.0
+cmd2_address = b'\x01'
+meter_float = 0.0
 cmd3_position = pack('f', meter_float)
-
+done = 0
 while True:
-    rs485tometer.write(cmd1_head)
-    rs485tometer.write(cmd2_address)
-    rs485tometer.write(cmd3_position)
-    time.sleep(3)
+    while done is 0:
+
+        for i in range(1000):
+            cmd3_position = pack('f', meter_float)
+
+            rs485tometer.write(cmd1_head)
+            rs485tometer.write(b'\x01')
+            rs485tometer.write(cmd3_position)
+
+            rs485tometer.write(cmd1_head)
+            rs485tometer.write(b'\x02')
+            rs485tometer.write(cmd3_position)
+
+            meter_float = random.uniform(0, 3200)
+            print("%d : %.2f" % (i, meter_float))
+
+            if done is 1:
+                break
+
+            time.sleep(1)
+    while done is 1:
+        print("back to zero")
+        meter_float = 0.0
+        cmd3_position = pack('f', meter_float)
+
+        rs485tometer.write(cmd1_head)
+        rs485tometer.write(b'\x01')
+        rs485tometer.write(cmd3_position)
+
+        rs485tometer.write(cmd1_head)
+        rs485tometer.write(b'\x02')
+        rs485tometer.write(cmd3_position)
+
+        time.sleep(60)
