@@ -34,7 +34,9 @@ def main():
         slave_1.add_block('1', cst.DISCRETE_INPUTS, 0, 100)
         slave_1.add_block('2', cst.COILS, 0, 100)
 
+
         # 初始化HOLDING_REGISTERS值
+        # 命令行读取COILS的值 get_values 1 2 0 5
         init_value = 0xff
         length = 8
         init_value_list = [init_value]*length
