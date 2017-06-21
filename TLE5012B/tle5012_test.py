@@ -29,13 +29,25 @@ import time
  +-----+-----+---------+------+---+----++----+---+------+---------+-----+-----+
  | BCM | wPi |   Name  | Mode | V | Physical | V | Mode | Name    | wPi | BCM |
  +-----+-----+---------+------+---+---Pi 2---+---+------+---------+-----+-----+
+
+gpio define(bcm)
+data    21
+sclk    20
+cs      16
 """
+tle5012_port_data = 21
+tle5012_port_sclk = 20
+tle5012_port_cs = 16
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(20, GPIO.OUT)
-GPIO.setup(21, GPIO.OUT)
-GPIO.output(20, GPIO.HIGH)
-GPIO.output(21, GPIO.HIGH)
+GPIO.setup(tle5012_port_data, GPIO.OUT)
+GPIO.setup(tle5012_port_sclk, GPIO.OUT)
+GPIO.setup(tle5012_port_cs, GPIO.OUT)
+
+def write5012(cmd):
+    GPIO.output(tle5012_port_cs, GPIO.LOW)
+    # for i in range(16):
+        
 try:
     while True:
         GPIO.output(20, GPIO.LOW)
