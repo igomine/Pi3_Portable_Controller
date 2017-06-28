@@ -40,14 +40,47 @@ tle5012_port_sclk = 20
 tle5012_port_cs = 16
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(tle5012_port_data, GPIO.OUT)
-GPIO.setup(tle5012_port_sclk, GPIO.OUT)
-GPIO.setup(tle5012_port_cs, GPIO.OUT)
+GPIO.setup(tle5012_port_data, GPIO.OUT, initial = GPIO.HIGH)
+GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial = GPIO.HIGH)
+GPIO.setup(tle5012_port_cs, GPIO.OUT, initial = GPIO.HIGH)
+
 
 def write5012(cmd):
     GPIO.output(tle5012_port_cs, GPIO.LOW)
-    # for i in range(16):
-        
+    for i in range(16):
+        GPIO.output(tle5012_port_sclk, GPIO.LOW)
+        if cmd & 0x8000:
+            GPIO.output(tle5012_port_data, GPIO.HIGH)
+        else:
+            GPIO.output(tle5012_port_data, GPIO.LOW)
+        GPIO.output(tle5012_port_sclk, GPIO.HIGH)
+        cmd <<= 1
+
+
+def read_angvalue():
+    GPIO.setup(tle5012_port_data, GPIO.IN)
+    for i in range(16):
+        GPIO.output(tle5012_port_sclk, GPIO.HIGH)
+        time.sleep(0.01)
+        if GPIO.input(tle5012_port_data):
+            tmp = tmp | 0x0001
+        else:
+            tmp = tmp & 0xfffe
+        GPIO.output(tle5012_port_sclk, GPIO.LOW)
+        tmp <<= 1
+    for i in range(16):
+        GPIO.output(tle5012_port_sclk, GPIO.LOW)
+        time.sleep(0.01)
+        if GPIO.input(tle5012_port_data):
+            tmp_crc = tmp_crc | 0x0001
+        else:
+            tmp_crc = tmp_crc & 0xfffe
+        GPIO.output(tle5012_port_sclk, GPIO.HIGH)
+        tmp_crc <<= 1
+    GPIO.output(tle5012_port_cs, GPIO.HIGH)
+    ang_val = tmp & 0x7fff
+    GPIO.setup(tle5012_port_data, GPIO.OUT)
+
 try:
     while True:
         GPIO.output(20, GPIO.LOW)
