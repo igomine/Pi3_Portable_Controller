@@ -1,6 +1,9 @@
 import RPi.GPIO as GPIO
 import time
-
+"""
+rs485 debug log, add by zrd, 2017.6.29
+  read rotate value, transplant code from stm32, tzy
+"""
 
 """ Wiring Diagram
  +-----+-----+---------+------+---+---Pi 2---+---+------+---------+-----+-----+
@@ -38,6 +41,9 @@ cs      16
 tle5012_port_data = 21
 tle5012_port_sclk = 20
 tle5012_port_cs = 16
+tmp = 0
+tmp_crc = 0
+ang_val = 0
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(tle5012_port_data, GPIO.OUT, initial = GPIO.HIGH)
@@ -58,23 +64,26 @@ def write5012(cmd):
 
 
 def read_angvalue():
+    global tmp, tmp_crc, ang_val
+    tmp = 0
+    tmp_crc = 0
     GPIO.setup(tle5012_port_data, GPIO.IN)
     for i in range(16):
         GPIO.output(tle5012_port_sclk, GPIO.HIGH)
         time.sleep(0.01)
         if GPIO.input(tle5012_port_data):
-            tmp = tmp | 0x0001
+            tmp |= 0x0001
         else:
-            tmp = tmp & 0xfffe
+            tmp &= 0xfffe
         GPIO.output(tle5012_port_sclk, GPIO.LOW)
         tmp <<= 1
     for i in range(16):
         GPIO.output(tle5012_port_sclk, GPIO.LOW)
         time.sleep(0.01)
         if GPIO.input(tle5012_port_data):
-            tmp_crc = tmp_crc | 0x0001
+            tmp_crc |= 0x0001
         else:
-            tmp_crc = tmp_crc & 0xfffe
+            tmp_crc &= 0xfffe
         GPIO.output(tle5012_port_sclk, GPIO.HIGH)
         tmp_crc <<= 1
     GPIO.output(tle5012_port_cs, GPIO.HIGH)
@@ -83,13 +92,9 @@ def read_angvalue():
 
 try:
     while True:
-        GPIO.output(20, GPIO.LOW)
-        time.sleep(0.5)
-        GPIO.output(20, GPIO.HIGH)
-        time.sleep(0.5)
-        GPIO.output(21, GPIO.LOW)
-        time.sleep(0.5)
-        GPIO.output(21, GPIO.HIGH)
+        write5012(0x8021)
+        read_angvalue()
+        print("value:%d" % ang_val)
         time.sleep(0.5)
 except KeyboardInterrupt:
     GPIO.cleanup()
