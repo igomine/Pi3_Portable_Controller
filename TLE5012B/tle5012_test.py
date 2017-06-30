@@ -46,9 +46,9 @@ tmp_crc = 0
 ang_val = 0
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(tle5012_port_data, GPIO.OUT, initial = GPIO.HIGH)
-GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial = GPIO.HIGH)
-GPIO.setup(tle5012_port_cs, GPIO.OUT, initial = GPIO.HIGH)
+GPIO.setup(tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
 
 
 def write5012(cmd):
