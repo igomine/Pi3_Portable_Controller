@@ -22,14 +22,16 @@ class InputLoopThread(object):
     tmp_crc = 0
     ang_val = 0
 
-    def __init__(self):
+    def __init__(self, server, slaveid):
+        self.server = server
+        self.slaveid = slaveid
         # tle5012 port init
         tle5012_port_data = 21
         tle5012_port_sclk = 20
         tle5012_port_cs = 16
-        tmp = 0
-        tmp_crc = 0
-        ang_val = 0
+        self.tmp = 0
+        self.tmp_crc = 0
+        self.ang_val = 0
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
         GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
@@ -47,31 +49,30 @@ class InputLoopThread(object):
             cmd <<= 1
 
     def read_angvalue(self):
-        global tmp, tmp_crc, ang_val
-        tmp = 0
-        tmp_crc = 0
+        self.write5012(0x8021)
         GPIO.setup(self.tle5012_port_data, GPIO.IN)
         for i in range(16):
             GPIO.output(self.tle5012_port_sclk, GPIO.HIGH)
             time.sleep(0.01)
             if GPIO.input(self.tle5012_port_data):
-                tmp |= 0x0001
+                self.tmp |= 0x0001
             else:
-                tmp &= 0xfffe
+                self.tmp &= 0xfffe
             GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
-            tmp <<= 1
+            self.tmp <<= 1
         for i in range(16):
             GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
             time.sleep(0.01)
             if GPIO.input(self.tle5012_port_data):
-                tmp_crc |= 0x0001
+                self.tmp_crc |= 0x0001
             else:
-                tmp_crc &= 0xfffe
+                self.tmp_crc &= 0xfffe
             GPIO.output(self.tle5012_port_sclk, GPIO.HIGH)
-            tmp_crc <<= 1
+            self.tmp_crc <<= 1
         GPIO.output(self.tle5012_port_cs, GPIO.HIGH)
-        ang_val = tmp & 0x7fff
+        ang_val = self.tmp & 0x7fff
         GPIO.setup(self.tle5012_port_data, GPIO.OUT)
+        return ang_val
 
     def checkpoll(self):
         if self.next_due < time.time():
@@ -80,29 +81,30 @@ class InputLoopThread(object):
 
     def poll(self):
         try:
-            self.write5012(0x8021)
-            self.read_angvalue()
+            slave = self.server.get_slave(self.slaveid)
+            slave.set_values('0', 0, self.read_angvalue())
+            values = slave.get_values('0', 0, 1)
         except Exception as exc:
             print("Error: %s", exc)
+
+
 def main():
     """main"""
-
+    slaveid = 1
     logger = modbus_tk.utils.create_logger(name="console", record_format="%(message)s")
 
     try:
-        #Create the server
-        server = modbus_tcp.TcpServer(address='127.0.0.1')
+        # Create the server
+        server = modbus_tcp.TcpServer(address='192.168.1.132')
         logger.info("running...")
         logger.info("enter 'quit' for closing the server")
 
         server.start()
 
-        slave_1 = server.add_slave(1)
+        slave_1 = server.add_slave(slaveid)
         slave_1.add_block('0', cst.HOLDING_REGISTERS, 0, 100)
         slave_1.add_block('1', cst.DISCRETE_INPUTS, 0, 100)
         slave_1.add_block('2', cst.COILS, 0, 100)
-
-
         # 初始化HOLDING_REGISTERS值
         # 命令行读取COILS的值 get_values 1 2 0 5
         init_value = 0xff
@@ -110,6 +112,11 @@ def main():
         init_value_list = [init_value]*length
         slave = server.get_slave(1)
         slave.set_values('0', 0, init_value_list)
+
+        r = InputLoopThread(server, slaveid)
+
+        while True:
+            r.checkpoll()
 
         while True:
             cmd = sys.stdin.readline()
@@ -159,6 +166,7 @@ def main():
                 sys.stdout.write("unknown command %s\r\n" % args[0])
     finally:
         server.stop()
+        GPIO.cleanup()
 
 
 if __name__ == "__main__":
