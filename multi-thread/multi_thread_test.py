@@ -9,11 +9,47 @@ import modbus_tk
 import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
 import RPi.GPIO as GPIO
+from threading import Thread
 import time
 
 
-class InputLoopThread(object):
-    frequency = 0.05
+class OutputLoopThread(Thread):
+    frequency = 0.01
+    next_due = 0
+
+    def __init__(self, server, slaveid):
+        # change for multi threading
+        super(OutputLoopThread, self).__init__()
+        self.server = server
+        self.slaveid = slaveid
+        self.coils_value = None
+        self.last_coils_value = None
+        GPIO.setmode(GPIO.BCM)
+        # GPIO.setup(tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
+        # GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
+        # GPIO.setup(tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
+
+    def run(self):
+        while True:
+            if self.next_due < time.time():
+                # print("start poll")
+                self.poll()
+                self.next_due = time.time() + self.frequency
+
+    def poll(self):
+        try:
+            slave = self.server.get_slave(self.slaveid)
+            self.coils_value = slave.get_values('coils', 0, 8)
+            if self.coils_value != self.last_coils_value:
+                self.last_coils_value = self.coils_value
+                for i in range(8):
+                    print(str(self.coils_value[i]))
+        except Exception as exc:
+            print("Error: %s", exc)
+
+
+class InputLoopThread(Thread):
+    frequency = 0.01
     next_due = 0
     tle5012_port_data = 21
     tle5012_port_sclk = 20
@@ -23,6 +59,8 @@ class InputLoopThread(object):
     ang_val = 0
 
     def __init__(self, server, slaveid):
+        # change for multi threading
+        super(InputLoopThread, self).__init__()
         self.server = server
         self.slaveid = slaveid
         # tle5012 port init
@@ -74,10 +112,12 @@ class InputLoopThread(object):
         GPIO.setup(self.tle5012_port_data, GPIO.OUT)
         return ang_val
 
-    def checkpoll(self):
-        if self.next_due < time.time():
-            self.poll()
-            self.next_due = time.time() + self.frequency
+    def run(self):
+        while True:
+            if self.next_due < time.time():
+                # print("start poll")
+                self.poll()
+                self.next_due = time.time() + self.frequency
 
     def poll(self):
         try:
@@ -104,7 +144,7 @@ def main():
         slave_1 = server.add_slave(slaveid)
         slave_1.add_block('0', cst.HOLDING_REGISTERS, 0, 100)
         slave_1.add_block('1', cst.DISCRETE_INPUTS, 0, 100)
-        slave_1.add_block('2', cst.COILS, 0, 100)
+        slave_1.add_block('coils', cst.COILS, 0, 100)
         # 初始化HOLDING_REGISTERS值
         # 命令行读取COILS的值 get_values 1 2 0 5
         init_value = 0xff
@@ -113,10 +153,10 @@ def main():
         slave = server.get_slave(1)
         slave.set_values('0', 0, init_value_list)
 
-        r = InputLoopThread(server, slaveid)
-
-        while True:
-            r.checkpoll()
+        thread_1 = InputLoopThread(server, slaveid)
+        thread_1.start()
+        thread_2 = OutputLoopThread(server, slaveid)
+        thread_2.start()
 
         while True:
             cmd = sys.stdin.readline()
