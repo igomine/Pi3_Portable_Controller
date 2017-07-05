@@ -44,7 +44,7 @@ class OutputLoopThread(Thread):
     def poll(self):
         try:
             slave = self.server.get_slave(self.slaveid)
-            self.coils_value = slave.get_values('coils', 0, 8)
+            self.coils_value = slave.get_values('COILS', 0, 8)
             if self.coils_value != self.last_coils_value:
                 self.last_coils_value = self.coils_value
                 for i in range(8):
@@ -128,8 +128,8 @@ class InputLoopThread(Thread):
     def poll(self):
         try:
             slave = self.server.get_slave(self.slaveid)
-            slave.set_values('0', 0, self.read_angvalue())
-            values = slave.get_values('0', 0, 1)
+            slave.set_values('HOLDING_REGISTERS', 0, self.read_angvalue())
+            values = slave.get_values('HOLDING_REGISTERS', 0, 1)
         except Exception as exc:
             print("Error: %s", exc)
 
@@ -148,9 +148,9 @@ def main():
         server.start()
 
         slave_1 = server.add_slave(slaveid)
-        slave_1.add_block('0', cst.HOLDING_REGISTERS, 0, 100)
-        slave_1.add_block('1', cst.DISCRETE_INPUTS, 0, 100)
-        slave_1.add_block('coils', cst.COILS, 0, 100)
+        slave_1.add_block('HOLDING_REGISTERS', cst.HOLDING_REGISTERS, 0, 20)
+        slave_1.add_block('DISCRETE_INPUTS', cst.DISCRETE_INPUTS, 0, 10)
+        slave_1.add_block('COILS', cst.COILS, 0, 10)
         # 初始化HOLDING_REGISTERS值
         # 命令行读取COILS的值 get_values 1 2 0 5
         init_value = 0xff
