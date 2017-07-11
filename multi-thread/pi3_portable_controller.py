@@ -56,9 +56,6 @@ class OutputLoopThread(Thread):
 class InputLoopThread(Thread):
     frequency = 0.01
     next_due = 0
-    tle5012_port_data = 21
-    tle5012_port_sclk = 20
-    tle5012_port_cs = 16
     tmp = 0
     tmp_crc = 0
     ang_val = 0
@@ -69,16 +66,22 @@ class InputLoopThread(Thread):
         self.server = server
         self.slaveid = slaveid
         # tle5012 port init
-        tle5012_port_data = 21
-        tle5012_port_sclk = 20
-        tle5012_port_cs = 16
+        self.tle5012_port_data = 21
+        self.tle5012_port_sclk = 20
+        self.tle5012_port_cs = 16
         self.tmp = 0
         self.tmp_crc = 0
         self.ang_val = 0
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
-        GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
-        GPIO.setup(tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(self.tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(self.tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(self.tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
+        # di input port init
+        self.di0_8_bcm = [4, 18, 17, 27, 22, 23, 24, 25, 5]
+        self.di_value = 0
+        self.di_lastvalue = 0
+        GPIO.setup(self.di0_8_bcm, GPIO.IN)
+
 
     def write5012(self, cmd):
         GPIO.output(self.tle5012_port_cs, GPIO.LOW)
@@ -128,8 +131,17 @@ class InputLoopThread(Thread):
     def poll(self):
         try:
             slave = self.server.get_slave(self.slaveid)
+            # read DI input
+            for i in range(8):
+                if GPIO.input(self.di0_8_bcm[i]):
+                    self.di_value |= (1 << i)
+            if self.di_value != self.di_lastvalue:
+                self.di_lastvalue = self.di_value
+            slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
+            # read angvalue
             slave.set_values('HOLDING_REGISTERS', 0, self.read_angvalue())
             values = slave.get_values('HOLDING_REGISTERS', 0, 1)
+
         except Exception as exc:
             print("Error: %s", exc)
 
@@ -157,7 +169,7 @@ def main():
         length = 8
         init_value_list = [init_value]*length
         slave = server.get_slave(1)
-        slave.set_values('0', 0, init_value_list)
+        slave.set_values('HOLDING_REGISTERS', 0, init_value_list)
 
         thread_1 = InputLoopThread(server, slaveid)
         thread_1.start()
