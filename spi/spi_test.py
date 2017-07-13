@@ -20,12 +20,13 @@ spi.cshigh = False
 
 
 # 0xff select all the bit-sel ,0xa4 send to seg-sel
-spi_send = [0xff, 0xa4]
+spi_send = [0x55, 0x55]
 
 
 try:
     while True:
         resp = spi.xfer(spi_send)
+        time.sleep(1)
 except KeyboardInterrupt:
     print("exit")
     spi.close()
