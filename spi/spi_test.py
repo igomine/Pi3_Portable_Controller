@@ -1,3 +1,6 @@
+'''
+    stange, first not work, later work well, same code
+'''
 import spidev
 import time
 
