@@ -2,10 +2,9 @@
 # -*- coding: utf_8 -*-
 """
     success to build up a modbus server by modbus tk
-    poll the input and control output
-    work with modbus server in multi-threading
+    poll the input and control output(spi), work with modbus server in multi-threading
     test by modbus poll in pc through wifi
-        2017.7.5 zrd
+        2017.7.14 zrd
 """
 
 import sys
@@ -15,6 +14,8 @@ from modbus_tk import modbus_tcp
 import RPi.GPIO as GPIO
 from threading import Thread
 import time
+import spidev
+import itertools
 
 
 class OutputLoopThread(Thread):
@@ -29,9 +30,24 @@ class OutputLoopThread(Thread):
         self.coils_value = None
         self.last_coils_value = None
         GPIO.setmode(GPIO.BCM)
+        # spi output init
+        self.spi = spidev.SpiDev(0, 0)
+        self.spi.open(0, 0)
+        self.spi.mode = 0b11
+        self.spi.max_speed_hz = 50
+        self.spi.cshigh = False
+        # self.spi_snd = [0x0, 0x0]
         # GPIO.setup(tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
         # GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
         # GPIO.setup(tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
+
+    def grouper(self, iterable, n, fillvalue=0):
+        "Collect data into fixed-length chunks or blocks"
+        # Taken from itertools recipes
+        # https://docs.python.org/2/library/itertools.html#recipes
+        # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+        args = [iter(iterable)] * n
+        return itertools.zip_longest(fillvalue=fillvalue, *args)
 
     def run(self):
         while True:
@@ -44,11 +60,16 @@ class OutputLoopThread(Thread):
     def poll(self):
         try:
             slave = self.server.get_slave(self.slaveid)
-            self.coils_value = slave.get_values('COILS', 0, 8)
+            self.coils_value = slave.get_values('COILS', 0, 16)
             if self.coils_value != self.last_coils_value:
                 self.last_coils_value = self.coils_value
-                for i in range(8):
-                    print(str(self.coils_value[i]))
+                # for some modbus and spi reason, reversed the coils list  __zrd
+                reversed_coils_value = list(reversed(self.coils_value))
+                byte_strings = (''.join(bit_group) for bit_group in self.grouper(map(str, reversed_coils_value), 8))
+                bytes = [int(byte_string, 2) for byte_string in byte_strings]
+                resp = self.spi.xfer(bytes)
+                # for i in range(16):
+                #     print(str(self.coils_value[i]))
         except Exception as exc:
             print("Error: %s", exc)
 
@@ -162,7 +183,7 @@ def main():
         slave_1 = server.add_slave(slaveid)
         slave_1.add_block('HOLDING_REGISTERS', cst.HOLDING_REGISTERS, 0, 20)
         slave_1.add_block('DISCRETE_INPUTS', cst.DISCRETE_INPUTS, 0, 10)
-        slave_1.add_block('COILS', cst.COILS, 0, 10)
+        slave_1.add_block('COILS', cst.COILS, 0, 16)
         # 初始化HOLDING_REGISTERS值
         # 命令行读取COILS的值 get_values 1 2 0 5
         init_value = 0xff

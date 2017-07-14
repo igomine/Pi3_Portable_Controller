@@ -23,7 +23,7 @@ spi.cshigh = False
 
 
 # 0xff select all the bit-sel ,0xa4 send to seg-sel
-spi_send = [0x55, 0x55]
+spi_send = [0x00, 0xc0]
 
 
 try:
