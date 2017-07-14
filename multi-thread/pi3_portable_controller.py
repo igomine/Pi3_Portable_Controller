@@ -12,19 +12,22 @@ import modbus_tk
 import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
 import RPi.GPIO as GPIO
-from threading import Thread
+import threading
 import time
 import spidev
 import itertools
+import copy
 
 
-class OutputLoopThread(Thread):
+class OutputLoopThread(threading.Thread):
     frequency = 0.01
     next_due = 0
 
     def __init__(self, server, slaveid):
         # change for multi threading
         super(OutputLoopThread, self).__init__()
+        self.__running = threading.Event()
+        self.__running.set()
         self.server = server
         self.slaveid = slaveid
         self.coils_value = None
@@ -49,20 +52,24 @@ class OutputLoopThread(Thread):
         args = [iter(iterable)] * n
         return itertools.zip_longest(fillvalue=fillvalue, *args)
 
+    def stop(self):
+        self.__running.clear()
+
     def run(self):
-        while True:
+        while self.__running.is_set():
             if self.next_due < time.time():
                 # print("start poll")
                 self.poll()
                 self.next_due = time.time() + self.frequency
                 # time.sleep(0.05)
+        return
 
     def poll(self):
         try:
             slave = self.server.get_slave(self.slaveid)
             self.coils_value = slave.get_values('COILS', 0, 16)
             if self.coils_value != self.last_coils_value:
-                self.last_coils_value = self.coils_value
+                self.last_coils_value = copy.copy(self.coils_value)
                 # for some modbus and spi reason, reversed the coils list  __zrd
                 reversed_coils_value = list(reversed(self.coils_value))
                 byte_strings = (''.join(bit_group) for bit_group in self.grouper(map(str, reversed_coils_value), 8))
@@ -74,7 +81,7 @@ class OutputLoopThread(Thread):
             print("Error: %s", exc)
 
 
-class InputLoopThread(Thread):
+class InputLoopThread(threading.Thread):
     frequency = 0.01
     next_due = 0
     tmp = 0
@@ -82,8 +89,10 @@ class InputLoopThread(Thread):
     ang_val = 0
 
     def __init__(self, server, slaveid):
-        # change for multi threading
+        # multi threading things
         super(InputLoopThread, self).__init__()
+        self.__running = threading.Event()
+        self.__running.set()
         self.server = server
         self.slaveid = slaveid
         # tle5012 port init
@@ -99,10 +108,9 @@ class InputLoopThread(Thread):
         GPIO.setup(self.tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
         # di input port init
         self.di0_8_bcm = [4, 18, 17, 27, 22, 23, 24, 25, 5]
-        self.di_value = 0
-        self.di_lastvalue = 0
-        GPIO.setup(self.di0_8_bcm, GPIO.IN)
-
+        self.di_value = [0]*8
+        self.di_lastvalue = [0]*8
+        GPIO.setup(self.di0_8_bcm, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
     def write5012(self, cmd):
         GPIO.output(self.tle5012_port_cs, GPIO.LOW)
@@ -141,13 +149,17 @@ class InputLoopThread(Thread):
         GPIO.setup(self.tle5012_port_data, GPIO.OUT)
         return ang_val
 
+    def stop(self):
+        self.__running.clear()
+
     def run(self):
-        while True:
+        while self.__running.is_set():
             if self.next_due < time.time():
                 # print("start poll")
                 self.poll()
                 self.next_due = time.time() + self.frequency
                 # time.sleep(0.05)
+        return
 
     def poll(self):
         try:
@@ -155,16 +167,21 @@ class InputLoopThread(Thread):
             # read DI input
             for i in range(8):
                 if GPIO.input(self.di0_8_bcm[i]):
-                    self.di_value |= (1 << i)
+                    self.di_value[i] = 1
+                else:
+                    self.di_value[i] = 0
             if self.di_value != self.di_lastvalue:
-                self.di_lastvalue = self.di_value
-            slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
+                # change to list copy
+                # self.di_lastvalue = self.di_value
+                self.di_lastvalue = copy.copy(self.di_value)
+                slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
+                values = slave.get_values('DISCRETE_INPUTS', 0, len(self.di_value))
             # read angvalue
             slave.set_values('HOLDING_REGISTERS', 0, self.read_angvalue())
             values = slave.get_values('HOLDING_REGISTERS', 0, 1)
 
         except Exception as exc:
-            print("Error: %s", exc)
+            print("InputLoopThread Error: %s", exc)
 
 
 def main():
@@ -197,6 +214,7 @@ def main():
         thread_2 = OutputLoopThread(server, slaveid)
         thread_2.start()
 
+        thread_1.join()
         while True:
             cmd = sys.stdin.readline()
             args = cmd.split(' ')
@@ -244,6 +262,8 @@ def main():
             else:
                 sys.stdout.write("unknown command %s\r\n" % args[0])
     finally:
+        thread_1.stop()
+        thread_2.stop()
         server.stop()
         GPIO.cleanup()
 
