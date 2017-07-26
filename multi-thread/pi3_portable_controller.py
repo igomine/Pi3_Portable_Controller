@@ -6,7 +6,8 @@
     test by modbus poll in pc through wifi
         2017.7.14 zrd
 """
-
+import serial
+from struct import pack, unpack
 import sys
 import modbus_tk
 import modbus_tk.defines as cst
@@ -32,6 +33,8 @@ class OutputLoopThread(threading.Thread):
         self.slaveid = slaveid
         self.coils_value = None
         self.last_coils_value = None
+        self.h_reg_value = [0]*16
+        self.last_h_reg_value = [0]*16
         GPIO.setmode(GPIO.BCM)
         # spi output init
         self.spi = spidev.SpiDev(0, 0)
@@ -39,10 +42,15 @@ class OutputLoopThread(threading.Thread):
         self.spi.mode = 0b11
         self.spi.max_speed_hz = 50
         self.spi.cshigh = False
-        # self.spi_snd = [0x0, 0x0]
-        # GPIO.setup(tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
-        # GPIO.setup(tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
-        # GPIO.setup(tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
+        # serial to 485 init
+        self.rs485tometer = serial.Serial('/dev/serial0', 115200, timeout=1)
+        self.rs485tometer.parity = serial.PARITY_ODD
+        if self.rs485tometer.isOpen() is False:
+            self.rs485tometer.open()
+        self.cmd1_head = b'UUUU2'
+        self.cmd2_address = b'\x01'
+        self.meter_float = 0.0
+        self.cmd3_position = pack('f', self.meter_float)
 
     def grouper(self, iterable, n, fillvalue=0):
         "Collect data into fixed-length chunks or blocks"
@@ -67,7 +75,8 @@ class OutputLoopThread(threading.Thread):
     def poll(self):
         try:
             slave = self.server.get_slave(self.slaveid)
-            self.coils_value = slave.get_values('COILS', 0, 16)
+            # control coils by rsv modbus value
+            self.coils_value = list(slave.get_values('COILS', 0, 16))
             if self.coils_value != self.last_coils_value:
                 self.last_coils_value = copy.copy(self.coils_value)
                 # for some modbus and spi reason, reversed the coils list  __zrd
@@ -75,8 +84,23 @@ class OutputLoopThread(threading.Thread):
                 byte_strings = (''.join(bit_group) for bit_group in self.grouper(map(str, reversed_coils_value), 8))
                 bytes = [int(byte_string, 2) for byte_string in byte_strings]
                 resp = self.spi.xfer(bytes)
-                # for i in range(16):
-                #     print(str(self.coils_value[i]))
+            # control meters by rsv modbus value
+            self.h_reg_value = list(slave.get_values('HOLDING_REGISTERS', 0, 16))
+            if self.h_reg_value != self.last_h_reg_value:
+                # find out different element and control output
+                for i in range(len(self.h_reg_value)):
+                    if self.h_reg_value[i] > 3240 or self.h_reg_value[i] < 0:
+                        print("Error: HOLDING_REGISTERS[%d]=%f, value error" % (i, self.h_reg_value[i]))
+                    elif self.h_reg_value[i] == self.last_h_reg_value[i]:
+                        pass
+                    else:
+                        self.meter_float = self.h_reg_value[i]
+                        self.cmd3_position = pack('f', self.meter_float)
+                        self.cmd2_address = i
+                        self.rs485tometer.write(self.cmd1_head)
+                        self.rs485tometer.write(b'\x01')
+                        self.rs485tometer.write(self.cmd3_position)
+                self.last_h_reg_value = copy.copy(self.h_reg_value)
         except Exception as exc:
             print("Error: %s", exc)
 
@@ -177,8 +201,8 @@ class InputLoopThread(threading.Thread):
                 slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
                 values = slave.get_values('DISCRETE_INPUTS', 0, len(self.di_value))
             # read angvalue
-            slave.set_values('HOLDING_REGISTERS', 0, self.read_angvalue())
-            values = slave.get_values('HOLDING_REGISTERS', 0, 1)
+            slave.set_values('READ_INPUT_REGISTERS', 0, self.read_angvalue())
+            values = slave.get_values('READ_INPUT_REGISTERS', 0, 1)
 
         except Exception as exc:
             print("InputLoopThread Error: %s", exc)
@@ -198,13 +222,14 @@ def main():
         server.start()
 
         slave_1 = server.add_slave(slaveid)
-        slave_1.add_block('HOLDING_REGISTERS', cst.HOLDING_REGISTERS, 0, 20)
+        slave_1.add_block('HOLDING_REGISTERS', cst.HOLDING_REGISTERS, 0, 16)
         slave_1.add_block('DISCRETE_INPUTS', cst.DISCRETE_INPUTS, 0, 10)
+        slave_1.add_block('READ_INPUT_REGISTERS', cst.READ_INPUT_REGISTERS, 0, 16)
         slave_1.add_block('COILS', cst.COILS, 0, 16)
         # 初始化HOLDING_REGISTERS值
         # 命令行读取COILS的值 get_values 1 2 0 5
-        init_value = 0xff
-        length = 8
+        init_value = 0x0
+        length = 16
         init_value_list = [init_value]*length
         slave = server.get_slave(1)
         slave.set_values('HOLDING_REGISTERS', 0, init_value_list)
