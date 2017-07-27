@@ -6,18 +6,10 @@
     test by modbus poll in pc through wifi
         2017.7.14 zrd
 """
-import serial
-from struct import pack, unpack
-import sys
-import modbus_tk
-import modbus_tk.defines as cst
-from modbus_tk import modbus_tcp
+
 import RPi.GPIO as GPIO
-import threading
 import time
-import spidev
-import itertools
-import copy
+
 
 RESET_STEP_MICROSEC = 800
 defaultAccelTable = [
@@ -48,16 +40,15 @@ class SwitecX25(object):
 
     def __init__(self):
         # io connect to switec motor
-        self.pins = [21, 20, 16, 12]
+        self.pins = [6, 13, 26, 19]
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(21, GPIO.OUT)
-        GPIO.setup(20, GPIO.OUT)
-        GPIO.setup(16, GPIO.OUT)
-        GPIO.setup(12, GPIO.OUT)
+        GPIO.setup(6, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(13, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(26, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(19, GPIO.OUT, initial=GPIO.LOW)
 
         self.pinCount = 4
         self.stateCount = 6
-        self.pins=[0]*self.pinCount
         # 6 steps
         self.currentState = 0
         # step we are currently at
@@ -81,7 +72,11 @@ class SwitecX25(object):
     def writeio(self):
         mask = stateMap[self.currentState]
         for i in range(self.pinCount):
-            GPIO.setup(self.pins[i], (mask & 0x01))
+            if mask & 0x01 == True:
+                j = GPIO.HIGH
+            else:
+                j = GPIO.LOW
+            GPIO.output(self.pins[i], j)
             mask >>= 1
 
     def stepup(self):
