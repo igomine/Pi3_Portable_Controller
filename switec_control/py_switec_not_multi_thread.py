@@ -46,13 +46,13 @@ DEFAULT_ACCEL_TABLE_SIZE = 5
 stateMap = [0x9, 0x1, 0x7, 0x6, 0xE, 0x8]
 
 
-class SwitecX25(threading.Thread):
+class SwitecX25(object):
 
     def __init__(self):
         # multi threading things
-        super(SwitecX25, self).__init__()
-        self.__running = threading.Event()
-        self.__running.set()
+        # super(SwitecX25, self).__init__()
+        # self.__running = threading.Event()
+        # self.__running.set()
         # io connect to switec motor
         # self.pins = [6, 13, 26, 19]
         self.pins = [26, 19, 6, 13]
@@ -216,24 +216,24 @@ def main():
     thread_1.setposition(405)
 
     # flag = 1
-    thread_1.start()
-    while True:
-        pass
+    # thread_1.start()
+    # while True:
+    #     pass
 
-    meter_float = random.uniform(0, 810)
-    print("current position:%d" % meter_float)
-    thread_1.setposition(meter_float)
-    thread_1.join()
+    # meter_float = random.uniform(0, 810)
+    # print("current position:%d" % meter_float)
+    # thread_1.setposition(meter_float)
 
 
 
     # motor1 = SwitecX25()
     try:
         while True:
-            time.sleep(3)
-            meter_float = random.uniform(0, 810)
-            print("current position:%d" % meter_float)
-            thread_1.setposition(meter_float)
+            thread_1.update()
+            # time.sleep(3)
+            # meter_float = random.uniform(0, 810)
+            # print("current position:%d" % meter_float)
+            # thread_1.setposition(meter_float)
     finally:
         thread_1.stop()
         GPIO.cleanup()
