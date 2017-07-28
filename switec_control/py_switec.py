@@ -9,8 +9,13 @@
 
 import RPi.GPIO as GPIO
 import time
+import threading
 
-
+# // This table defines the acceleration curve.
+# // 1st value is the speed step, 2nd value is delay in microseconds
+# // 1st value in each row must be > 1st value in subsequent row
+# // 1st value in last row should be == maxVel, must be <= maxVel
+# RESET_STEP_MICROSEC = 800
 RESET_STEP_MICROSEC = 800
 defaultAccelTable = [
     [20, 3000],
@@ -19,14 +24,18 @@ defaultAccelTable = [
     [150,  800],
     [300,  600]
 ]
+
+
 # 二维数组的行数
 DEFAULT_ACCEL_TABLE_SIZE = 5
 
 # // experimentation suggests that 400uS is about the step limit
 # // with my hand-made needles made by cutting up aluminium from
 # // floppy disk sliders.  A lighter needle will go faster.
-#
+
 # // State  3 2 1 0   Value
+
+#            R   L
 # // 0      1 0 0 1   0x9
 # // 1      0 0 0 1   0x1
 # // 2      0 1 1 1   0x7
@@ -39,8 +48,13 @@ stateMap = [0x9, 0x1, 0x7, 0x6, 0xE, 0x8]
 class SwitecX25(object):
 
     def __init__(self):
+        # # multi threading things
+        # super(SwitecX25, self).__init__()
+        # self.__running = threading.Event()
+        # self.__running.set()
         # io connect to switec motor
-        self.pins = [6, 13, 26, 19]
+        # self.pins = [6, 13, 26, 19]
+        self.pins = [26, 19, 6, 13]
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(6, GPIO.OUT, initial=GPIO.LOW)
         GPIO.setup(13, GPIO.OUT, initial=GPIO.LOW)
@@ -55,12 +69,12 @@ class SwitecX25(object):
         self.currentStep = 0
         # target we are moving to
         self.targetStep = 0
-        self.steps = 3240            # total steps available
-        self.time0=None           # time when we entered this state
-        self.microDelay =None       # microsecs until next state
-        self.vel = 0              # steps travelled under acceleration
-        self.dir = 0                      # direction -1,0,1
-        self.stopped = True               # true if stopped
+        self.steps = 810                   # total steps available
+        self.time0 = None                     # time when we entered this state
+        self.microDelay = None               # microsecs until next state
+        self.vel = 0                        # steps travelled under acceleration
+        self.dir = 0                        # direction -1,0,1
+        self.stopped = True                 # true if stopped
         self.accelTable = defaultAccelTable
 
         # python另外增加的变量
@@ -72,7 +86,7 @@ class SwitecX25(object):
     def writeio(self):
         mask = stateMap[self.currentState]
         for i in range(self.pinCount):
-            if mask & 0x01 == True:
+            if mask & 0x01 is True:
                 j = GPIO.HIGH
             else:
                 j = GPIO.LOW
@@ -95,7 +109,7 @@ class SwitecX25(object):
         self.currentStep = self.steps - 1
         for i in range(self.steps):
             self.stepdown()
-            time.sleep(RESET_STEP_MICROSEC*0.000001)
+            time.sleep(RESET_STEP_MICROSEC/1000000)
         self.currentStep = 0
         self.targetStep = 0
         self.vel = 0
@@ -120,7 +134,8 @@ class SwitecX25(object):
         if self.currentStep == self.targetStep and self.vel == 0:
             self.stopped = True
             self.dir = 0
-            self.time0 = time.time()
+            # self.time0 = time.time()
+            self.time0 = time.clock()
             return
         if self.vel == 0:
             if self.currentStep < self.targetStep:
@@ -139,20 +154,24 @@ class SwitecX25(object):
             delta = self.currentStep - self.targetStep
 
         if delta > 0:
-            if delta < self.vel:
+            # case 1 : moving towards target (maybe under accel or decel)
+            if delta < self.vel:            # time to declerate
                 self.vel -= 1
-            elif self.vel < self.maxVel:
+            elif self.vel < self.maxVel:    # accelerating
                 self.vel += 1
             else:
-                pass
+                pass                        # at full speed - stay there
+        # case 2 : at or moving away from target (slow down!)
         else:
             self.vel -= 1
 
+        # vel now defines delay
         i = 0
         while self.accelTable[i][0] < self.vel:
             i += 1
         self.microDelay = self.accelTable[i][1]
-        self.time0 = time.time()
+        # self.time0 = time.time()
+        self.time0 = time.clock()
 
     def setposition(self, pos):
         if pos >= self.steps:
@@ -160,12 +179,14 @@ class SwitecX25(object):
         self.targetStep = pos
         if self.stopped:
             self.stopped = False
-            self.time0 = time.time()
+            # self.time0 = time.time()
+            self.time0 = time.clock()
             self.microDelay = 0
 
     def update(self):
         if not self.stopped:
-            delta = (time.time() - self.time0)*1000000
+            # delta = (time.time() - self.time0)*1000000
+            delta = (time.clock() - self.time0) * 1000000
             if delta >= self.microDelay:
                 self.advance()
 
@@ -175,16 +196,36 @@ class SwitecX25(object):
             if delta >= self.microDelay:
                 self.advance()
 
+    def stop(self):
+        self.__running.clear()
+
+    def run(self):
+        while self.__running.is_set():
+            if not self.stopped:
+                # delta = (time.time() - self.time0)*1000000
+                delta = (time.clock() - self.time0) * 1000000
+                if delta >= self.microDelay:
+                    self.advance()
+        return
+
 
 def main():
-    motor1 = SwitecX25()
-    try:
-        motor1.zero()
-        motor1.setposition(3240/2)
+    thread_1 = SwitecX25()
+    thread_1.zero()
+    thread_1.setposition(3240/2)
 
+    flag = 1
+    # thread_1.start()
+
+    # motor1 = SwitecX25()
+    try:
         while True:
-            motor1.update()
+            while flag:
+                thread_1.update()
+            x = 1000
+            thread_1.setposition(x)
     finally:
+        thread_1.stop()
         GPIO.cleanup()
 
 

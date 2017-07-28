@@ -146,18 +146,26 @@ void SwitecX25::advance()
   // may be negative if we are headed away from target
   int delta = dir>0 ? targetStep-currentStep : currentStep-targetStep;
 
-  if (delta>0) {
+  if (delta>0)
+  {
     // case 1 : moving towards target (maybe under accel or decel)
-    if (delta < vel) {
+    if (delta < vel)
+    {
       // time to declerate
       vel--;
-    } else if (vel < maxVel) {
+    }
+    else if (vel < maxVel)
+    {
       // accelerating
       vel++;
-    } else {
+    }
+    else
+    {
       // at full speed - stay there
     }
-  } else {
+  }
+  else
+  {
     // case 2 : at or moving away from target (slow down!)
     vel--;
   }
