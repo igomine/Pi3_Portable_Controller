@@ -224,16 +224,22 @@ def main():
     # print("current position:%d" % meter_float)
     # thread_1.setposition(meter_float)
 
-
-
+    start = time.clock()
+    flag = 1
+    i = 0
     # motor1 = SwitecX25()
     try:
         while True:
             thread_1.update()
-            # time.sleep(3)
-            # meter_float = random.uniform(0, 810)
-            # print("current position:%d" % meter_float)
-            # thread_1.setposition(meter_float)
+            if (time.clock() - start) > 5 and flag == 1:
+                start = time.clock()
+                # meter_float = random.randint(0, 810)
+                meter_pos = (i + 1) * 81
+                print("current position:%d" % meter_pos)
+                thread_1.setposition(meter_pos)
+                i += 1
+                if i == 10:
+                    i = 0
     finally:
         thread_1.stop()
         GPIO.cleanup()
