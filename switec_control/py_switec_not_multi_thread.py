@@ -9,6 +9,7 @@
 
 import RPi.GPIO as GPIO
 import time
+import math
 import threading
 import random
 
@@ -70,7 +71,10 @@ class SwitecX25(object):
         self.currentStep = 0
         # target we are moving to
         self.targetStep = 0
-        self.steps = 810                   # total steps available
+
+        self.steps = 945
+        # total steps available, switec total rotation 315 degree,we use 270 degree __chark
+
         self.time0 = None                     # time when we entered this state
         self.microDelay = None               # microsecs until next state
         self.vel = 0                        # steps travelled under acceleration
@@ -192,8 +196,9 @@ class SwitecX25(object):
                 self.advance()
 
     def updateblocking(self):
-        while self.stopped:
-            delta = time.time() - self.time0
+        while not self.stopped:
+            # delta = time.time() - self.time0
+            delta = (time.clock() - self.time0) * 1000000
             if delta >= self.microDelay:
                 self.advance()
 
@@ -230,12 +235,14 @@ def main():
     # motor1 = SwitecX25()
     try:
         while True:
-            thread_1.update()
+            # thread_1.update()
+            thread_1.updateblocking()
             if (time.clock() - start) > 5 and flag == 1:
                 start = time.clock()
                 # meter_float = random.randint(0, 810)
-                meter_pos = (i + 1) * 81
-                print("current position:%d" % meter_pos)
+                # meter_pos = (i + 1) * 81
+                meter_pos = int(round(270 * 500 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
+                print("psi:%d, pos:%d" % ((i+1)*500, meter_pos))
                 thread_1.setposition(meter_pos)
                 i += 1
                 if i == 10:
@@ -247,3 +254,14 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# psi:500, pos:80
+# psi:1000, pos:160
+# psi:1500, pos:239
+# psi:2000, pos:319
+# psi:2500, pos:399
+# psi:3000, pos:479
+# psi:3500, pos:559
+# psi:4000, pos:638
+# psi:4500, pos:718
+# psi:5000, pos:798
