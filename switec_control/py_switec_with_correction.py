@@ -3,6 +3,8 @@
 """
     fork from the github proj named "SwitecX25", original code is  c++, change to python
      notice that , don't put this program under multi-thread, and avoid motor lost steps
+        2017.7.29 zrd
+    add correction
         2017.7.31 zrd
 """
 
@@ -151,8 +153,7 @@ class SwitecX25(object):
             self.stopped = True
             self.dir = 0
             # self.time0 = time.time()
-            # self.time0 = time.clock()
-            self.time0 = time.process_time()
+            self.time0 = time.clock()
             return
         if self.vel == 0:
             if self.currentStep < self.targetStep:
@@ -188,8 +189,7 @@ class SwitecX25(object):
             i += 1
         self.microDelay = self.accelTable[i][1]
         # self.time0 = time.time()
-        # self.time0 = time.clock()
-        self.time0 = time.process_time()
+        self.time0 = time.clock()
 
     def setposition(self, pos):
         if pos >= self.steps:
@@ -198,23 +198,20 @@ class SwitecX25(object):
         if self.stopped:
             self.stopped = False
             # self.time0 = time.time()
-            # self.time0 = time.clock()
-            self.time0 = time.process_time()
+            self.time0 = time.clock()
             self.microDelay = 0
 
     def update(self):
         if not self.stopped:
             # delta = (time.time() - self.time0)*1000000
-            # delta = (time.clock() - self.time0) * 1000000
-            delta = (time.process_time() - self.time0) * 1000000
+            delta = (time.clock() - self.time0) * 1000000
             if delta >= self.microDelay:
                 self.advance()
 
     def updateblocking(self):
         while not self.stopped:
             # delta = time.time() - self.time0
-            # delta = (time.clock() - self.time0) * 1000000
-            delta = (time.process_time() - self.time0) * 1000000
+            delta = (time.clock() - self.time0) * 1000000
             if delta >= self.microDelay:
                 self.advance()
 
@@ -225,8 +222,7 @@ class SwitecX25(object):
         while self.__running.is_set():
             if not self.stopped:
                 # delta = (time.time() - self.time0)*1000000
-                # delta = (time.clock() - self.time0) * 1000000
-                delta = (time.process_time() - self.time0) * 1000000
+                delta = (time.clock() - self.time0) * 1000000
                 if delta >= self.microDelay:
                     self.advance()
         return
@@ -246,34 +242,25 @@ def main():
     # print("current position:%d" % meter_float)
     # thread_1.setposition(meter_float)
 
-    # start = time.clock()
-    start = time.process_time()
+    start = time.clock()
     flag = 1
-    zero_flag = 0
     i = 0
     # motor1 = SwitecX25()
     try:
         while True:
-            if zero_flag == 0:
-                # thread_1.update()
-                thread_1.updateblocking()
-                # end = time.clock()
-                end = time.process_time()
-                if (end - start) > 0.5 and flag == 1:
-                    print("end:%f, start:%f" % (end, start))
-                    # start = time.clock()
-                    start = time.process_time()
-                    # meter_float = random.randint(0, 810)
-                    # meter_pos = (i + 1) * 81
-                    meter_pos = int(round(270 * 500 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
-                    print("psi:%d, pos:%d" % ((i+1)*500, meter_pos))
-                    thread_1.setposition(meter_pos)
-                    i += 1
-                    if i == 10:
-                        i = 0
-            else:
-                thread_1.setposition(0)
-                thread_1.updateblocking()
+            # thread_1.update()
+            thread_1.updateblocking()
+            end = time.clock()
+            if (end - start) > 0.5 and flag == 1:
+                start = time.clock()
+                # meter_float = random.randint(0, 810)
+                # meter_pos = (i + 1) * 81
+                meter_pos = int(round(270 * 500 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
+                print("psi:%d, pos:%d" % ((i+1)*500, meter_pos))
+                thread_1.setposition(meter_pos)
+                i += 1
+                if i == 10:
+                    i = 0
     finally:
         thread_1.stop()
         GPIO.cleanup()

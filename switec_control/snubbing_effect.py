@@ -18,26 +18,29 @@ import random
 # // 1st value in last row should be == maxVel, must be <= maxVel
 # 1st param is the steps from 0 ~ 810, means 0-20 steps ,use speed 3000 micro sec
 # 20 - 50 steps use speed 1500 micro sec
-# test show that, when speed below 1000, the motor lost steps __chark
+# test show that, when speed below 1400, the motor lost steps __chark
 
 # RESET_STEP_MICROSEC = 800
 # RESET_STEP_MICROSEC = 8000
-RESET_STEP_MICROSEC = 2000
-# defaultAccelTable = [
-#     [20, 3000],
-#     [50, 1500],
-#     [100, 1000],
-#     [150,  800],
-#     [300,  600]
-# ]
+RESET_STEP_MICROSEC = 2000*1.5
+# 1.5 lost step, 1.6 is ok
 defaultAccelTable = [
-    [20, 6750],
-    [50, 3300],
-    [100, 2200],
-    [150,  1800],
-    [300,  1350]
+    [20, 1400*1.6],
+    [50, 840*1.6],
+    [100, 670*1.6],
+    [150,  600*1.6],
+    [300,  560*1.6]
 ]
-
+# 1.5 lost step, 1.6 is ok
+# defaultAccelTable = [
+#     [20, 2000],
+#     [40, 1200],
+#     [60, 930],
+#     [80, 800],
+#     [100, 710],
+#     [120, 670],
+#     [140, 600]
+# ]
 
 # 二维数组的行数
 DEFAULT_ACCEL_TABLE_SIZE = 5
@@ -88,6 +91,7 @@ class SwitecX25(object):
 
         self.time0 = None                     # time when we entered this state
         self.microDelay = None               # microsecs until next state
+        self.last_microDelay = None             #for test __chark
         self.vel = 0                        # steps travelled under acceleration
         self.dir = 0                        # direction -1,0,1
         self.stopped = True                 # true if stopped
@@ -97,7 +101,8 @@ class SwitecX25(object):
 
         # 从c++不太好处理的两个变量
         # unsigned short (*accelTable)[2] # accel table can be modified.
-        self.maxVel = 300           # fastest vel allowed
+        # self.maxVel = 300           # fastest vel allowed
+        self.maxVel = 300  # fastest vel allowed
 
     def writeio(self):
         mask = stateMap[self.currentState]
@@ -187,6 +192,9 @@ class SwitecX25(object):
         while self.accelTable[i][0] < self.vel:
             i += 1
         self.microDelay = self.accelTable[i][1]
+        if self.microDelay != self.last_microDelay:
+            self.last_microDelay = self.microDelay
+            print("delay:%d" % self.microDelay)
         # self.time0 = time.time()
         # self.time0 = time.clock()
         self.time0 = time.process_time()
@@ -201,6 +209,7 @@ class SwitecX25(object):
             # self.time0 = time.clock()
             self.time0 = time.process_time()
             self.microDelay = 0
+            self.last_microDelay = self.microDelay
 
     def update(self):
         if not self.stopped:
@@ -251,6 +260,7 @@ def main():
     flag = 1
     zero_flag = 0
     i = 0
+    meter_pos = 80
     # motor1 = SwitecX25()
     try:
         while True:
@@ -259,18 +269,23 @@ def main():
                 thread_1.updateblocking()
                 # end = time.clock()
                 end = time.process_time()
-                if (end - start) > 0.5 and flag == 1:
+                if (end - start) > 1 and flag == 1:
                     print("end:%f, start:%f" % (end, start))
                     # start = time.clock()
                     start = time.process_time()
                     # meter_float = random.randint(0, 810)
                     # meter_pos = (i + 1) * 81
-                    meter_pos = int(round(270 * 500 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
-                    print("psi:%d, pos:%d" % ((i+1)*500, meter_pos))
+                    # meter_pos = int(round(270 * 500 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
+                    if meter_pos == 80:
+                        meter_pos = 798
+                    else:
+                        meter_pos = 80
+                    # print("psi:%d, pos:%d" % ((i+1)*500, meter_pos))
+                    print("pos:%d" % (meter_pos))
                     thread_1.setposition(meter_pos)
-                    i += 1
-                    if i == 10:
-                        i = 0
+                    # i += 1
+                    # if i == 10:
+                    #     i = 0
             else:
                 thread_1.setposition(0)
                 thread_1.updateblocking()
