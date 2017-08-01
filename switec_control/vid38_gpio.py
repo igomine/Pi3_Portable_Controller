@@ -22,7 +22,7 @@ import random
 
 # RESET_STEP_MICROSEC = 800
 # RESET_STEP_MICROSEC = 8000
-RESET_STEP_MICROSEC = 400
+RESET_STEP_MICROSEC = 2000
 # defaultAccelTable = [
 #     [20, 3000],
 #     [50, 1500],
@@ -30,34 +30,17 @@ RESET_STEP_MICROSEC = 400
 #     [150,  800],
 #     [300,  600]
 # ]
-# defaultAccelTable = [
-#     [24, 350*1.6],
-#     [24*2, 210*1.6],
-#     [24*3, 170*1.6],
-#     [24*4, 150*1.6],
-#     [24*5, 140*1.6],
-#     [24*6, 120 * 1.6],
-#     [24*7, 100 * 1.6],
-#     [24*8, 80 * 1.6],
-#     [24*9, 60 * 1.6],
-#     [24*10, 40 * 1.6]
-# ]
-acc = 0.5
 defaultAccelTable = [
-    [24, int(83*22*acc)],
-    [24*2, int(83*18*acc)],
-    [24*3, int(83*16*acc)],
-    [24*4, int(83*12*acc)],
-    [24*5, int(83*8*acc)],
-    [24*6, int(83*6*acc)],
-    [24*7, int(83*4*acc)],
-    [24*8, int(83*2*acc)],
-    [24*9, int(83*1*acc)],
-    [24*10, int(83*1*acc)]
+    [20, 6750],
+    [50, 3300],
+    [100, 2200],
+    [150,  1800],
+    [300,  1350]
 ]
 
+
 # 二维数组的行数
-DEFAULT_ACCEL_TABLE_SIZE = 10
+DEFAULT_ACCEL_TABLE_SIZE = 5
 
 # // experimentation suggests that 400uS is about the step limit
 # // with my hand-made needles made by cutting up aluminium from
@@ -84,17 +67,12 @@ class SwitecX25(object):
         # self.__running.set()
         # io connect to switec motor
         # self.pins = [6, 13, 26, 19]
-        # self.pins = [26, 19, 6, 13]
-        self.pin_FSC = 2
-        self.pin_CW = 3
-        self.pin_RS = 4
+        self.pins = [26, 19, 6, 13]
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin_FSC, GPIO.OUT, initial=GPIO.LOW)
-        GPIO.setup(self.pin_CW, GPIO.OUT, initial=GPIO.LOW)
-        GPIO.setup(self.pin_RS, GPIO.OUT, initial=GPIO.LOW)
-
-        GPIO.output(self.pin_RS, GPIO.HIGH)
-        # GPIO.setup(19, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(6, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(13, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(26, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(19, GPIO.OUT, initial=GPIO.LOW)
 
         self.pinCount = 4
         self.stateCount = 6
@@ -105,12 +83,11 @@ class SwitecX25(object):
         # target we are moving to
         self.targetStep = 0
 
-        self.steps = 3240
+        self.steps = 945
         # total steps available, switec total rotation 315 degree,we use 270 degree __chark
 
         self.time0 = None                     # time when we entered this state
         self.microDelay = None               # microsecs until next state
-        self.last_microDelay = None
         self.vel = 0                        # steps travelled under acceleration
         self.dir = 0                        # direction -1,0,1
         self.stopped = True                 # true if stopped
@@ -120,33 +97,28 @@ class SwitecX25(object):
 
         # 从c++不太好处理的两个变量
         # unsigned short (*accelTable)[2] # accel table can be modified.
-        self.maxVel = 240           # fastest vel allowed
+        self.maxVel = 300           # fastest vel allowed
 
     def writeio(self):
-        GPIO.output(self.pin_FSC, GPIO.HIGH)
-        time.sleep(0.000138)
-        GPIO.output(self.pin_FSC, GPIO.LOW)
-        # mask = stateMap[self.currentState]
-        # for i in range(self.pinCount):
-        #     if mask & 0x01 == True:
-        #         j = GPIO.HIGH
-        #     else:
-        #         j = GPIO.LOW
-        #     GPIO.output(self.pins[i], j)
-        #     mask >>= 1
+        mask = stateMap[self.currentState]
+        for i in range(self.pinCount):
+            if mask & 0x01 == True:
+                j = GPIO.HIGH
+            else:
+                j = GPIO.LOW
+            GPIO.output(self.pins[i], j)
+            mask >>= 1
 
     def stepup(self):
         if self.currentStep < self.steps:
             self.currentStep += 1
-            # self.currentState = (self.currentState + 1) % self.stateCount
-            GPIO.output(self.pin_CW, GPIO.LOW)
+            self.currentState = (self.currentState + 1) % self.stateCount
             self.writeio()
 
     def stepdown(self):
         if self.currentStep > 0:
             self.currentStep -= 1
-            # self.currentState = (self.currentState + 5) % self.stateCount
-            GPIO.output(self.pin_CW, GPIO.HIGH)
+            self.currentState = (self.currentState + 5) % self.stateCount
             self.writeio()
 
     def zero(self):
@@ -215,9 +187,6 @@ class SwitecX25(object):
         while self.accelTable[i][0] < self.vel:
             i += 1
         self.microDelay = self.accelTable[i][1]
-        if self.microDelay != self.last_microDelay:
-            self.last_microDelay = self.microDelay
-            print("delay:%d" % self.microDelay)
         # self.time0 = time.time()
         # self.time0 = time.clock()
         self.time0 = time.process_time()
@@ -266,7 +235,7 @@ class SwitecX25(object):
 def main():
     thread_1 = SwitecX25()
     thread_1.zero()
-    thread_1.setposition(1620)
+    thread_1.setposition(405)
 
     # flag = 1
     # thread_1.start()
@@ -295,12 +264,12 @@ def main():
                     # start = time.clock()
                     start = time.process_time()
                     # meter_float = random.randint(0, 810)
-                    meter_pos = (i + 1) * 810
-                    # meter_pos = int(round(270 * 12 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
-                    print("pos:%d" % meter_pos)
+                    # meter_pos = (i + 1) * 81
+                    meter_pos = int(round(270 * 500 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
+                    print("psi:%d, pos:%d" % ((i+1)*500, meter_pos))
                     thread_1.setposition(meter_pos)
                     i += 1
-                    if i == 4:
+                    if i == 10:
                         i = 0
             else:
                 thread_1.setposition(0)
