@@ -8,6 +8,7 @@
 
 import RPi.GPIO as GPIO
 import time
+import wiringpi as w_gpio
 import math
 import threading
 import random
@@ -22,20 +23,20 @@ import random
 
 # RESET_STEP_MICROSEC = 800
 # RESET_STEP_MICROSEC = 8000
-RESET_STEP_MICROSEC = 2000
+RESET_STEP_MICROSEC = 500
 # defaultAccelTable = [
-#     [20, 3000],
-#     [50, 1500],
-#     [100, 1000],
-#     [150,  800],
-#     [300,  600]
+#     [20, 6750],
+#     [50, 3300],
+#     [100, 2200],
+#     [150,  1800],
+#     [300,  1350]
 # ]
 defaultAccelTable = [
-    [20, 6750],
-    [50, 3300],
-    [100, 2200],
-    [150,  1800],
-    [300,  1350]
+    [20, 3000],
+    [50, 1500],
+    [100, 1000],
+    [150,  800],
+    [300,  600]
 ]
 
 
@@ -57,6 +58,15 @@ DEFAULT_ACCEL_TABLE_SIZE = 5
 # // 5      1 0 0 0   0x8
 stateMap = [0x9, 0x1, 0x7, 0x6, 0xE, 0x8]
 
+#            R   L
+# // 0      0 1 1 0   0x6
+# // 1      0 1 0 0   0x8
+# // 2      0 0 0 1   0x9
+# // 3      1 0 0 1   0x9
+# // 4      1 0 0 0   0x8
+# // 5      0 0 1 0   0x8
+
+# stateMap = [0x6, 0x4, 0x1, 0x9, 0x8, 0x2]
 
 class SwitecX25(object):
 
@@ -67,7 +77,8 @@ class SwitecX25(object):
         # self.__running.set()
         # io connect to switec motor
         # self.pins = [6, 13, 26, 19]
-        self.pins = [26, 19, 6, 13]
+        # self.pins = [26, 19, 6, 13]
+        self.pins = [13, 6, 26, 19]
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(6, GPIO.OUT, initial=GPIO.LOW)
         GPIO.setup(13, GPIO.OUT, initial=GPIO.LOW)
@@ -123,9 +134,17 @@ class SwitecX25(object):
 
     def zero(self):
         self.currentStep = self.steps - 1
+        # time0_s = time.clock()
+        # time1_s = w_gpio.micros()
+        # w_gpio.delayMicroseconds(500)
+        # time.sleep(RESET_STEP_MICROSEC/1000000)
         for i in range(self.steps):
             self.stepdown()
             time.sleep(RESET_STEP_MICROSEC/1000000)
+        # time0_e = time.clock()
+        # time1_e = w_gpio.micros()
+        # print("%d" % ((time0_e-time0_s)*1000000))
+        # print(time1_e - time1_s)
         self.currentStep = 0
         self.targetStep = 0
         self.vel = 0
@@ -235,7 +254,7 @@ class SwitecX25(object):
 def main():
     thread_1 = SwitecX25()
     thread_1.zero()
-    thread_1.setposition(405)
+    # thread_1.setposition(405)
 
     # flag = 1
     # thread_1.start()
@@ -259,17 +278,17 @@ def main():
                 thread_1.updateblocking()
                 # end = time.clock()
                 end = time.process_time()
-                if (end - start) > 0.5 and flag == 1:
+                if (end - start) > 1 and flag == 1:
                     print("end:%f, start:%f" % (end, start))
                     # start = time.clock()
                     start = time.process_time()
                     # meter_float = random.randint(0, 810)
                     # meter_pos = (i + 1) * 81
-                    meter_pos = int(round(270 * 500 * (i + 1) * 3 / 5076))  # psi 0 ~ 5076 psi
-                    print("psi:%d, pos:%d" % ((i+1)*500, meter_pos))
+                    meter_pos = int(round(270 * 3 * i  / 3 ))  # psi 0 ~ 5076 psi
+                    print("pos:%d" %  meter_pos)
                     thread_1.setposition(meter_pos)
                     i += 1
-                    if i == 10:
+                    if i == 4:
                         i = 0
             else:
                 thread_1.setposition(0)

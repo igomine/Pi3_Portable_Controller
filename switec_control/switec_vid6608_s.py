@@ -42,7 +42,7 @@ RESET_STEP_MICROSEC = 400
 #     [24*9, 60 * 1.6],
 #     [24*10, 40 * 1.6]
 # ]
-acc = 0.5
+acc = 0.3
 defaultAccelTable = [
     [24, int(83*22*acc)],
     [24*2, int(83*18*acc)],
@@ -72,8 +72,16 @@ DEFAULT_ACCEL_TABLE_SIZE = 10
 # // 3      0 1 1 0   0x6
 # // 4      1 1 1 0   0xE
 # // 5      1 0 0 0   0x8
-stateMap = [0x9, 0x1, 0x7, 0x6, 0xE, 0x8]
+# stateMap = [0x9, 0x1, 0x7, 0x6, 0xE, 0x8]
+#            R   L
+# // 0      0 1 1 0   0x6
+# // 1      0 1 0 0   0x8
+# // 2      0 0 0 1   0x9
+# // 3      1 0 0 1   0x9
+# // 4      1 0 0 0   0x8
+# // 5      0 0 1 0   0x8
 
+stateMap = [0x6, 0x4, 0x1, 0x9, 0x8, 0x2]
 
 class SwitecX25(object):
 
