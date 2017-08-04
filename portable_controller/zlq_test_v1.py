@@ -96,13 +96,16 @@ class OutputLoopThread(threading.Thread):
                     else:
                         self.meter_float = self.h_reg_value[i]
                         self.cmd3_position = pack('f', self.meter_float)
-                        self.cmd2_address = i
+                        # self.cmd2_address = i
                         self.rs485tometer.write(self.cmd1_head)
-                        self.rs485tometer.write(b'\x01')
+                        # address = b'i'
+                        # self.rs485tometer.write(b'\x06')
+                        # address = bytes([i])
+                        self.rs485tometer.write(pack("B", i))
                         self.rs485tometer.write(self.cmd3_position)
                 self.last_h_reg_value = copy.copy(self.h_reg_value)
         except Exception as exc:
-            print("Error: %s", exc)
+            print("OutputLoopThread Error: %s", exc)
 
 
 class InputLoopThread(threading.Thread):
@@ -123,9 +126,9 @@ class InputLoopThread(threading.Thread):
         # self.tle5012_port_data = 21
         # self.tle5012_port_sclk = 20
         # self.tle5012_port_cs = 16
-        self.tle5012_port_data = 4
-        self.tle5012_port_sclk = 11
-        self.tle5012_port_cs = 7
+        self.tle5012_port_data = 13
+        self.tle5012_port_sclk = 12
+        self.tle5012_port_cs = 6
         self.tmp = 0
         self.tmp_crc = 0
         self.ang_val = 0
@@ -204,8 +207,10 @@ class InputLoopThread(threading.Thread):
                 slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
                 values = slave.get_values('DISCRETE_INPUTS', 0, len(self.di_value))
             # read angvalue
+            # print(self.read_angvalue())
             slave.set_values('READ_INPUT_REGISTERS', 0, self.read_angvalue())
             values = slave.get_values('READ_INPUT_REGISTERS', 0, 1)
+
 
         except Exception as exc:
             print("InputLoopThread Error: %s", exc)
