@@ -84,13 +84,16 @@ class OutputLoopThread(threading.Thread):
                 byte_strings = (''.join(bit_group) for bit_group in self.grouper(map(str, reversed_coils_value), 8))
                 bytes = [int(byte_string, 2) for byte_string in byte_strings]
                 resp = self.spi.xfer(bytes)
-            # control meters by rsv modbus value
+            # control meters by rsv modbus holding reg value
             self.h_reg_value = list(slave.get_values('HOLDING_REGISTERS', 0, 16))
             if self.h_reg_value != self.last_h_reg_value:
                 # find out different element and control output
                 for i in range(len(self.h_reg_value)):
                     if self.h_reg_value[i] > 3240 or self.h_reg_value[i] < 0:
                         print("Error: HOLDING_REGISTERS[%d]=%f, value error" % (i, self.h_reg_value[i]))
+                        slave.set_values('HOLDING_REGISTERS', i, 0)
+                        slave.get_values('HOLDING_REGISTERS', i, 1)
+                        pass
                     elif self.h_reg_value[i] == self.last_h_reg_value[i]:
                         pass
                     else:
@@ -101,6 +104,8 @@ class OutputLoopThread(threading.Thread):
                         # address = b'i'
                         # self.rs485tometer.write(b'\x06')
                         # address = bytes([i])
+                        # address2 = b'\x01'
+                        # address = pack("B", i)
                         self.rs485tometer.write(pack("B", i))
                         self.rs485tometer.write(self.cmd3_position)
                 self.last_h_reg_value = copy.copy(self.h_reg_value)
