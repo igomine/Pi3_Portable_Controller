@@ -163,7 +163,7 @@ class InputLoopThread(threading.Thread):
         GPIO.setup(self.tle5012_port_data, GPIO.IN)
         for i in range(16):
             GPIO.output(self.tle5012_port_sclk, GPIO.HIGH)
-            time.sleep(0.01)
+            time.sleep(0.001)
             if GPIO.input(self.tle5012_port_data):
                 self.tmp |= 0x0001
             else:
@@ -172,7 +172,7 @@ class InputLoopThread(threading.Thread):
             self.tmp <<= 1
         for i in range(16):
             GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
-            time.sleep(0.01)
+            time.sleep(0.001)
             if GPIO.input(self.tle5012_port_data):
                 self.tmp_crc |= 0x0001
             else:
