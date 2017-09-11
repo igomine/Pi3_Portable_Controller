@@ -1,7 +1,7 @@
 from RPiMCP23S17.MCP23S17 import MCP23S17
 import time
 
-mcp1 = MCP23S17(bus=0x00, ce=0x00, deviceID=0x00)
+mcp1 = MCP23S17(bus=0x00, ce=0x00, deviceID=0x02)
 mcp2 = MCP23S17(bus=0x00, ce=0x00, deviceID=0x01)
 mcp1.open()
 mcp2.open()
@@ -24,10 +24,10 @@ while (True):
     time.sleep(1)
 
     # the lines below essentially have the same effect as the lines above
-    mcp1.writeGPIO(0xFFF)
-    mcp2.writeGPIO(0xFFF)
-    time.sleep(1)
-
-    mcp1.writeGPIO(0x000)
-    mcp2.writeGPIO(0x0000)
-    time.sleep(1)
+    # mcp1.writeGPIO(0xFFF)
+    # mcp2.writeGPIO(0xFFF)
+    # time.sleep(1)
+    #
+    # mcp1.writeGPIO(0x000)
+    # mcp2.writeGPIO(0x0000)
+    # time.sleep(1)
