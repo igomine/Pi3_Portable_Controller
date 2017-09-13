@@ -140,7 +140,7 @@ class InputLoopThread(threading.Thread):
         self.tle5012_port_cs = 3
         self.tmp = [0]*12
         self.tmp_crc = [0]*12
-        self.ang_val = 0
+        self.ang_val = [0]*12
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
         GPIO.setup(self.tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
@@ -172,25 +172,27 @@ class InputLoopThread(threading.Thread):
             # time.sleep(0.001)
             # result = GPIO.input(self.tle5012_pord_data_lst)
             for j in range(len(self.tle5012_pord_data_lst)):
-                if GPIO.input(self.tle5012_port_data):
-                    self.tmp |= 0x0001
+                if GPIO.input(self.tle5012_pord_data_lst[j]):
+                    self.tmp[j] |= 0x0001
                 else:
-                    self.tmp &= 0xfffe
+                    self.tmp[j] &= 0xfffe
+                self.tmp[j] <<= 1
             GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
-            self.tmp <<= 1
-        for i in range(16):
-            GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
-            time.sleep(0.001)
-            if GPIO.input(self.tle5012_port_data):
-                self.tmp_crc |= 0x0001
-            else:
-                self.tmp_crc &= 0xfffe
-            GPIO.output(self.tle5012_port_sclk, GPIO.HIGH)
-            self.tmp_crc <<= 1
+        # for i in range(16):
+        #     GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
+        #     # time.sleep(0.001)
+        #     for j in range(len(self.tle5012_pord_data_lst)):
+        #         if GPIO.input(self.tle5012_pord_data_lst[j]):
+        #             self.tmp_crc[j] |= 0x0001
+        #         else:
+        #             self.tmp_crc[j] &= 0xfffe
+        #         self.tmp_crc[j] <<= 1
+        #     GPIO.output(self.tle5012_port_sclk, GPIO.HIGH)
         GPIO.output(self.tle5012_port_cs, GPIO.HIGH)
-        ang_val = self.tmp & 0x7fff
+        for i in range(len(self.tle5012_pord_data_lst)):
+            self.ang_val[i] = self.tmp[i] & 0x7fff
         GPIO.setup(self.tle5012_pord_data_lst, GPIO.OUT)
-        return ang_val
+        return self.ang_val
 
     def stop(self):
         self.__running.clear()
@@ -221,8 +223,9 @@ class InputLoopThread(threading.Thread):
             #     values = slave.get_values('DISCRETE_INPUTS', 0, len(self.di_value))
             # read angvalue
             # print(self.read_angvalue())
-            slave.set_values('READ_INPUT_REGISTERS', 0, self.read_angvalue())
-            values = slave.get_values('READ_INPUT_REGISTERS', 0, 1)
+            for i in range(len(self.tle5012_pord_data_lst)):
+                slave.set_values('READ_INPUT_REGISTERS', i, self.read_angvalue()[i])
+            values = slave.get_values('READ_INPUT_REGISTERS', 0, 12)
 
 
         except Exception as exc:
