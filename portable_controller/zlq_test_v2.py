@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf_8 -*-
 """
+    based on zlq_test_v1.py, change hardware to a new board use chip MCP23S17
     U1 port 0-15, U2 port 0-15 config as digital output
     U3 port 0-15 config as digital input
-    based on zlq_test_v1.py, change hardware to a new board use chip MCP23S17
+
         2017.9.11 zrd
 """
 import serial
@@ -133,43 +134,48 @@ class InputLoopThread(threading.Thread):
         # self.tle5012_port_data = 21
         # self.tle5012_port_sclk = 20
         # self.tle5012_port_cs = 16
-        self.tle5012_port_data = 13
-        self.tle5012_port_sclk = 12
-        self.tle5012_port_cs = 6
-        self.tmp = 0
-        self.tmp_crc = 0
+        self.tle5012_port_data = 5
+        self.tle5012_pord_data_lst = [5, 6, 24, 23, 18, 26, 19, 13, 20, 16, 12, 25]  # [ch1, ch2,...ch12]
+        self.tle5012_port_sclk = 2
+        self.tle5012_port_cs = 3
+        self.tmp = [0]*12
+        self.tmp_crc = [0]*12
         self.ang_val = 0
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.tle5012_port_data, GPIO.OUT, initial=GPIO.HIGH)
         GPIO.setup(self.tle5012_port_sclk, GPIO.OUT, initial=GPIO.HIGH)
         GPIO.setup(self.tle5012_port_cs, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(self.tle5012_pord_data_lst, GPIO.OUT, initial=GPIO.HIGH)
         # di input port init
-        self.di0_8_bcm = [4, 18, 17, 27, 22, 23, 24, 25, 5]
-        self.di_value = [0]*8
-        self.di_lastvalue = [0]*8
-        GPIO.setup(self.di0_8_bcm, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # self.di0_8_bcm = [4, 18, 17, 27, 22, 23, 24, 25, 5]
+        # self.di_value = [0]*8
+        # self.di_lastvalue = [0]*8
+        # GPIO.setup(self.di0_8_bcm, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
     def write5012(self, cmd):
         GPIO.output(self.tle5012_port_cs, GPIO.LOW)
         for i in range(16):
             GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
             if cmd & 0x8000:
-                GPIO.output(self.tle5012_port_data, GPIO.HIGH)
+                GPIO.output(self.tle5012_pord_data_lst, GPIO.HIGH)
             else:
-                GPIO.output(self.tle5012_port_data, GPIO.LOW)
+                GPIO.output(self.tle5012_pord_data_lst, GPIO.LOW)
             GPIO.output(self.tle5012_port_sclk, GPIO.HIGH)
             cmd <<= 1
 
     def read_angvalue(self):
         self.write5012(0x8021)
-        GPIO.setup(self.tle5012_port_data, GPIO.IN)
+        GPIO.setup(self.tle5012_pord_data_lst, GPIO.IN)
+        # time.sleep(0.001)
         for i in range(16):
             GPIO.output(self.tle5012_port_sclk, GPIO.HIGH)
-            time.sleep(0.001)
-            if GPIO.input(self.tle5012_port_data):
-                self.tmp |= 0x0001
-            else:
-                self.tmp &= 0xfffe
+            # time.sleep(0.001)
+            # result = GPIO.input(self.tle5012_pord_data_lst)
+            for j in range(len(self.tle5012_pord_data_lst)):
+                if GPIO.input(self.tle5012_port_data):
+                    self.tmp |= 0x0001
+                else:
+                    self.tmp &= 0xfffe
             GPIO.output(self.tle5012_port_sclk, GPIO.LOW)
             self.tmp <<= 1
         for i in range(16):
@@ -183,7 +189,7 @@ class InputLoopThread(threading.Thread):
             self.tmp_crc <<= 1
         GPIO.output(self.tle5012_port_cs, GPIO.HIGH)
         ang_val = self.tmp & 0x7fff
-        GPIO.setup(self.tle5012_port_data, GPIO.OUT)
+        GPIO.setup(self.tle5012_pord_data_lst, GPIO.OUT)
         return ang_val
 
     def stop(self):
@@ -202,17 +208,17 @@ class InputLoopThread(threading.Thread):
         try:
             slave = self.server.get_slave(self.slaveid)
             # read DI input
-            for i in range(8):
-                if GPIO.input(self.di0_8_bcm[i]):
-                    self.di_value[i] = 1
-                else:
-                    self.di_value[i] = 0
-            if self.di_value != self.di_lastvalue:
-                # change to list copy
-                # self.di_lastvalue = self.di_value
-                self.di_lastvalue = copy.copy(self.di_value)
-                slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
-                values = slave.get_values('DISCRETE_INPUTS', 0, len(self.di_value))
+            # for i in range(8):
+            #     if GPIO.input(self.di0_8_bcm[i]):
+            #         self.di_value[i] = 1
+            #     else:
+            #         self.di_value[i] = 0
+            # if self.di_value != self.di_lastvalue:
+            #     # change to list copy
+            #     # self.di_lastvalue = self.di_value
+            #     self.di_lastvalue = copy.copy(self.di_value)
+            #     slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
+            #     values = slave.get_values('DISCRETE_INPUTS', 0, len(self.di_value))
             # read angvalue
             # print(self.read_angvalue())
             slave.set_values('READ_INPUT_REGISTERS', 0, self.read_angvalue())

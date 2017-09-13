@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf_8 -*-
 """
+    output hardware use 74hc595 + ULN2803
+    input hardware use Pi original IO port
     success to build up a modbus server by modbus tk
     poll the input and control output(spi), work with modbus server in multi-threading
     test by modbus poll in pc through wifi
