@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf_8 -*-
 """
+    U1 port 0-15, U2 port 0-15 config as digital output
+    U3 port 0-15 config as digital input
     based on zlq_test_v1.py, change hardware to a new board use chip MCP23S17
         2017.9.11 zrd
 """
@@ -29,10 +31,12 @@ class OutputLoopThread(threading.Thread):
         self.__running.set()
         self.server = server
         self.slaveid = slaveid
+
         self.coils_value = None
         self.last_coils_value = None
         self.h_reg_value = [0]*16
         self.last_h_reg_value = [0]*16
+
         GPIO.setmode(GPIO.BCM)
         # spi output init
         self.spi = spidev.SpiDev(0, 0)
