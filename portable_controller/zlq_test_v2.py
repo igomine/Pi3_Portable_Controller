@@ -227,7 +227,6 @@ class InputLoopThread(threading.Thread):
                 slave.set_values('READ_INPUT_REGISTERS', i, self.read_angvalue()[i])
             values = slave.get_values('READ_INPUT_REGISTERS', 0, 12)
 
-
         except Exception as exc:
             print("InputLoopThread Error: %s", exc)
 

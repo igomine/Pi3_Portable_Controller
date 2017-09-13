@@ -63,7 +63,7 @@ while True:
         rs485tometer.write(cmd3_position)
 
         rs485tometer.write(cmd1_head)
-        rs485tometer.write(b'\x02')
+        rs485tometer.write(b'\x06')
         rs485tometer.write(cmd3_position)
 
         meter_float = random.uniform(0, 3200)
