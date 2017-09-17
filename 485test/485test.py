@@ -13,8 +13,8 @@ import random
 
 
 gpio.setmode(gpio.BCM)
-gpio.setup(21, gpio.OUT)
-gpio.output(21, gpio.HIGH)
+gpio.setup(4, gpio.OUT)
+gpio.output(4, gpio.HIGH)
 
 # while True:
 #     print("a")
@@ -42,11 +42,11 @@ while True:
             cmd3_position = pack('f', meter_float)
 
             rs485tometer.write(cmd1_head)
-            rs485tometer.write(b'\x01')
+            rs485tometer.write(b'\x00')
             rs485tometer.write(cmd3_position)
 
             rs485tometer.write(cmd1_head)
-            rs485tometer.write(b'\x02')
+            rs485tometer.write(b'\x06')
             rs485tometer.write(cmd3_position)
 
             meter_float = random.uniform(0, 3200)
