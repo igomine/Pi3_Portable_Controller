@@ -238,7 +238,7 @@ def main():
 
     try:
         # Create the server
-        server = modbus_tcp.TcpServer(address='192.168.1.132')
+        server = modbus_tcp.TcpServer(address='192.168.1.103')
         logger.info("running...")
         logger.info("enter 'quit' for closing the server")
 
