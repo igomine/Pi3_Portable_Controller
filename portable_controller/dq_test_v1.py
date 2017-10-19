@@ -20,6 +20,8 @@ import spidev
 import itertools
 import copy
 from RPiMCP23S17.MCP23S17 import MCP23S17
+import socket
+import os
 
 
 class OutputLoopThread(threading.Thread):
@@ -243,23 +245,47 @@ class InputLoopThread(threading.Thread):
 
 class LedStatusThread(threading.Thread):
 
-    def __init__(self, server, slaveid, mcp_handle):
+    def __init__(self, ipaddr, slaveid, mcp_handle):
         # change for multi threading
         super(LedStatusThread, self).__init__()
         self.__running = threading.Event()
         self.__running.set()
         self.mcp23s17_u3 = mcp_handle
+        self.ipaddr = ipaddr
+        self.frequency = 9
+        self.next_due = 0
 
     def stop(self):
         self.__running.clear()
 
     def run(self):
         while self.__running.is_set():
+
             self.mcp23s17_u3.digitalWrite(13, MCP23S17.LEVEL_LOW)
             time.sleep(0.05)
             self.mcp23s17_u3.digitalWrite(13, MCP23S17.LEVEL_HIGH)
             time.sleep(3)
+
+            # check network interface status
+            if self.next_due < time.time():
+                self.next_due = time.time() + self.frequency
+                gw = os.popen("ip -4 route show default").read().split()
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.connect((gw[2], 0))
+                ipaddr_newest = s.getsockname()[0]
+                print("IP:", ipaddr_newest)
+                s.close()
+                if ipaddr_newest != self.ipaddr:
+                    print("network interface changed, restart program")
+                    restart_program()
+
+
         return
+
+
+def restart_program():
+    python = sys.executable
+    os.execl(python, python, * sys.argv)
 
 
 def main():
@@ -268,8 +294,17 @@ def main():
     logger = modbus_tk.utils.create_logger(name="console", record_format="%(message)s")
 
     try:
+        # get current ipaddr
+        gw = os.popen("ip -4 route show default").read().split()
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect((gw[2], 0))
+        ipaddr = s.getsockname()[0]
+        print("IP:", ipaddr)
+        s.close()
+
         # Create the server
-        server = modbus_tcp.TcpServer(address='192.168.1.111')
+        # server = modbus_tcp.TcpServer(address='192.168.1.111')
+        server = modbus_tcp.TcpServer(address=ipaddr)
         logger.info("esimtech modbus server running...")
         logger.info("enter 'quit' for closing the server")
 
@@ -309,7 +344,7 @@ def main():
         thread_1.start()
         thread_2 = OutputLoopThread(server, slaveid, mcp_u2)
         thread_2.start()
-        thread_3 = LedStatusThread(server, slaveid, mcp_u3)
+        thread_3 = LedStatusThread(ipaddr, slaveid, mcp_u3)
         thread_3.start()
 
         thread_1.join()
