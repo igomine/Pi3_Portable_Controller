@@ -241,6 +241,27 @@ class InputLoopThread(threading.Thread):
             print("InputLoopThread Error: %s", exc)
 
 
+class LedStatusThread(threading.Thread):
+
+    def __init__(self, server, slaveid, mcp_handle):
+        # change for multi threading
+        super(LedStatusThread, self).__init__()
+        self.__running = threading.Event()
+        self.__running.set()
+        self.mcp23s17_u3 = mcp_handle
+
+    def stop(self):
+        self.__running.clear()
+
+    def run(self):
+        while self.__running.is_set():
+            self.mcp23s17_u3.digitalWrite(13, MCP23S17.LEVEL_LOW)
+            time.sleep(0.05)
+            self.mcp23s17_u3.digitalWrite(13, MCP23S17.LEVEL_HIGH)
+            time.sleep(3)
+        return
+
+
 def main():
     """main"""
     slaveid = 1
@@ -249,7 +270,7 @@ def main():
     try:
         # Create the server
         server = modbus_tcp.TcpServer(address='192.168.1.111')
-        logger.info("running...")
+        logger.info("esimtech modbus server running...")
         logger.info("enter 'quit' for closing the server")
 
         server.start()
@@ -270,70 +291,78 @@ def main():
         # init mcp23s17
         mcp_u1 = MCP23S17(bus=0x00, ce=0x00, deviceID=0x00)
         mcp_u2 = MCP23S17(bus=0x00, ce=0x00, deviceID=0x01)
+        mcp_u3 = MCP23S17(bus=0x00, ce=0x00, deviceID=0x02)
 
         mcp_u1.open()
         mcp_u2.open()
-        # mcp_U3.open()
+        mcp_u3.open()
 
         for x in range(0, 16):
             mcp_u1.setDirection(x, mcp_u1.DIR_INPUT)
             mcp_u2.setDirection(x, mcp_u2.DIR_OUTPUT)
 
+        # status led
+        mcp_u3.setDirection(13, mcp_u3.DIR_OUTPUT)
+        mcp_u3.setPullupMode(13, mcp_u3.PULLUP_ENABLED)
+
         thread_1 = InputLoopThread(server, slaveid, mcp_u1)
         thread_1.start()
         thread_2 = OutputLoopThread(server, slaveid, mcp_u2)
         thread_2.start()
+        thread_3 = LedStatusThread(server, slaveid, mcp_u3)
+        thread_3.start()
 
         thread_1.join()
-        while True:
-            cmd = sys.stdin.readline()
-            args = cmd.split(' ')
-
-            if cmd.find('quit') == 0:
-                sys.stdout.write('bye-bye\r\n')
-                break
-
-            elif args[0] == 'add_slave':
-                slave_id = int(args[1])
-                server.add_slave(slave_id)
-                sys.stdout.write('done: slave %d added\r\n' % slave_id)
-
-            elif args[0] == 'add_block':
-                slave_id = int(args[1])
-                name = args[2]
-                block_type = int(args[3])
-                starting_address = int(args[4])
-                length = int(args[5])
-                slave = server.get_slave(slave_id)
-                slave.add_block(name, block_type, starting_address, length)
-                sys.stdout.write('done: block %s added\r\n' % name)
-
-            elif args[0] == 'set_values':
-                slave_id = int(args[1])
-                name = args[2]
-                address = int(args[3])
-                values = []
-                for val in args[4:]:
-                    values.append(int(val))
-                slave = server.get_slave(slave_id)
-                slave.set_values(name, address, values)
-                values = slave.get_values(name, address, len(values))
-                sys.stdout.write('done: values written: %s\r\n' % str(values))
-
-            elif args[0] == 'get_values':
-                slave_id = int(args[1])
-                name = args[2]
-                address = int(args[3])
-                length = int(args[4])
-                slave = server.get_slave(slave_id)
-                values = slave.get_values(name, address, length)
-                sys.stdout.write('done: values read: %s\r\n' % str(values))
-
-            else:
-                sys.stdout.write("unknown command %s\r\n" % args[0])
+        # while True:
+        #     cmd = sys.stdin.readline()
+        #     args = cmd.split(' ')
+        #
+        #     if cmd.find('quit') == 0:
+        #         sys.stdout.write('bye-bye\r\n')
+        #         break
+        #
+        #     elif args[0] == 'add_slave':
+        #         slave_id = int(args[1])
+        #         server.add_slave(slave_id)
+        #         sys.stdout.write('done: slave %d added\r\n' % slave_id)
+        #
+        #     elif args[0] == 'add_block':
+        #         slave_id = int(args[1])
+        #         name = args[2]
+        #         block_type = int(args[3])
+        #         starting_address = int(args[4])
+        #         length = int(args[5])
+        #         slave = server.get_slave(slave_id)
+        #         slave.add_block(name, block_type, starting_address, length)
+        #         sys.stdout.write('done: block %s added\r\n' % name)
+        #
+        #     elif args[0] == 'set_values':
+        #         slave_id = int(args[1])
+        #         name = args[2]
+        #         address = int(args[3])
+        #         values = []
+        #         for val in args[4:]:
+        #             values.append(int(val))
+        #         slave = server.get_slave(slave_id)
+        #         slave.set_values(name, address, values)
+        #         values = slave.get_values(name, address, len(values))
+        #         sys.stdout.write('done: values written: %s\r\n' % str(values))
+        #
+        #     elif args[0] == 'get_values':
+        #         slave_id = int(args[1])
+        #         name = args[2]
+        #         address = int(args[3])
+        #         length = int(args[4])
+        #         slave = server.get_slave(slave_id)
+        #         values = slave.get_values(name, address, length)
+        #         sys.stdout.write('done: values read: %s\r\n' % str(values))
+        #
+        #     else:
+        #         sys.stdout.write("unknown command %s\r\n" % args[0])
     finally:
         thread_1.stop()
         thread_2.stop()
+        thread_3.stop()
         server.stop()
         GPIO.cleanup()
 
