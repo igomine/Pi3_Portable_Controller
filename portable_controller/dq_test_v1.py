@@ -22,7 +22,10 @@ import copy
 from RPiMCP23S17.MCP23S17 import MCP23S17
 import socket
 import os
+import queue
+import random
 
+q = queue.Queue(10)
 
 class OutputLoopThread(threading.Thread):
     frequency = 0.01
@@ -243,17 +246,18 @@ class InputLoopThread(threading.Thread):
             print("InputLoopThread Error: %s", exc)
 
 
-class LedStatusThread(threading.Thread):
+class StatusHoldingThread(threading.Thread):
 
-    def __init__(self, ipaddr, slaveid, mcp_handle):
+    def __init__(self, ip, q, mcp_handle):
         # change for multi threading
-        super(LedStatusThread, self).__init__()
+        super(StatusHoldingThread, self).__init__()
         self.__running = threading.Event()
         self.__running.set()
         self.mcp23s17_u3 = mcp_handle
-        self.ipaddr = ipaddr
+        self.ipaddr = ip
         self.frequency = 9
         self.next_due = 0
+        self.queue = q
 
     def stop(self):
         self.__running.clear()
@@ -273,17 +277,22 @@ class LedStatusThread(threading.Thread):
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 s.connect((gw[2], 0))
                 ipaddr_newest = s.getsockname()[0]
-                print("IP:", ipaddr_newest)
+                # print("IP:", ipaddr_newest)
                 s.close()
                 if ipaddr_newest != self.ipaddr:
-                    print("network interface changed, restart program")
-                    restart_program()
-
-
+                    print("network interface changed")
+                    # restart_program()
+                    self.queue.put(1)
+                    # return
         return
 
 
-def restart_program():
+def restart_program(thread1, thread2, thread3, server):
+    thread1.stop()
+    thread2.stop()
+    thread_3.stop()
+    server.stop()
+    GPIO.cleanup()
     python = sys.executable
     os.execl(python, python, * sys.argv)
 
@@ -297,10 +306,15 @@ def main():
         # get current ipaddr
         gw = os.popen("ip -4 route show default").read().split()
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # s.settimeout(CHECK_TIMEOUT)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # S.bind(('', UDP_PORT))
         s.connect((gw[2], 0))
         ipaddr = s.getsockname()[0]
         print("IP:", ipaddr)
         s.close()
+        time.sleep(1)
+        # ipaddr = "192.168.1.112"
 
         # Create the server
         # server = modbus_tcp.TcpServer(address='192.168.1.111')
@@ -344,10 +358,21 @@ def main():
         thread_1.start()
         thread_2 = OutputLoopThread(server, slaveid, mcp_u2)
         thread_2.start()
-        thread_3 = LedStatusThread(ipaddr, slaveid, mcp_u3)
+        thread_3 = StatusHoldingThread(ipaddr, q, mcp_u3)
         thread_3.start()
 
-        thread_1.join()
+        # block here until get message
+        q.get(True)
+        print("restart program")
+        # restart_program()
+        thread_1.stop()
+        thread_2.stop()
+        thread_3.stop()
+        server.stop()
+        GPIO.cleanup()
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+        # thread_3.join()
         # while True:
         #     cmd = sys.stdin.readline()
         #     args = cmd.split(' ')
