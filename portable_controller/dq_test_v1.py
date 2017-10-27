@@ -273,28 +273,32 @@ class StatusHoldingThread(threading.Thread):
             # check network interface status
             if self.next_due < time.time():
                 self.next_due = time.time() + self.frequency
-                gw = os.popen("ip -4 route show default").read().split()
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                s.connect((gw[2], 0))
-                ipaddr_newest = s.getsockname()[0]
-                # print("IP:", ipaddr_newest)
-                s.close()
+                # gw = os.popen("ip -4 route show default").read().split()
+                # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                # s.connect((gw[2], 0))
+                # ipaddr_newest = s.getsockname()[0]
+                # # print("IP:", ipaddr_newest)
+                # s.close()
+                ipaddr_newest = os.popen(
+                    "ifconfig | grep 'inet addr:' | grep -v '127.0.0.1' | cut -d: -f2 | awk '{print $1}' | head -1").read()
                 if ipaddr_newest != self.ipaddr:
                     print("network interface changed")
                     # restart_program()
                     self.queue.put(1)
                     # return
+                else:
+                    print(".")
         return
 
 
-def restart_program(thread1, thread2, thread3, server):
-    thread1.stop()
-    thread2.stop()
-    thread_3.stop()
-    server.stop()
-    GPIO.cleanup()
-    python = sys.executable
-    os.execl(python, python, * sys.argv)
+# def restart_program(thread1, thread2, thread3, server):
+#     thread1.stop()
+#     thread2.stop()
+#     thread_3.stop()
+#     server.stop()
+#     GPIO.cleanup()
+#     python = sys.executable
+#     os.execl(python, python, * sys.argv)
 
 
 def main():
@@ -304,17 +308,20 @@ def main():
 
     try:
         # get current ipaddr
-        gw = os.popen("ip -4 route show default").read().split()
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # s.settimeout(CHECK_TIMEOUT)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # S.bind(('', UDP_PORT))
-        s.connect((gw[2], 0))
-        ipaddr = s.getsockname()[0]
-        print("IP:", ipaddr)
-        s.close()
-        time.sleep(1)
+        # gw = os.popen("ip -4 route show default").read().split()
+        # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # # s.settimeout(CHECK_TIMEOUT)
+        # s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # # S.bind(('', UDP_PORT))
+        # s.connect((gw[2], 0))
+        # ipaddr = s.getsockname()[0]
+        # print("IP:", ipaddr)
+        # s.close()
+        # time.sleep(1)
         # ipaddr = "192.168.1.112"
+        ipaddr = os.popen(
+            "ifconfig | grep 'inet addr:' | grep -v '127.0.0.1' | cut -d: -f2 | awk '{print $1}' | head -1").read()
+        print("IP:", ipaddr)
 
         # Create the server
         # server = modbus_tcp.TcpServer(address='192.168.1.111')
@@ -370,6 +377,7 @@ def main():
         thread_3.stop()
         server.stop()
         GPIO.cleanup()
+        time.sleep(1)
         python = sys.executable
         os.execl(python, python, *sys.argv)
         # thread_3.join()
