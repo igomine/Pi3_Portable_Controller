@@ -355,6 +355,7 @@ def main():
 
         for x in range(0, 16):
             mcp_u1.setDirection(x, mcp_u1.DIR_INPUT)
+            mcp_u1.setPullupMode(x, mcp_u1.PULLUP_ENABLED)
             mcp_u2.setDirection(x, mcp_u2.DIR_OUTPUT)
 
         # status led

@@ -10,7 +10,7 @@ mcp_U1.open()
 mcp_U3.open()
 
 for x in range(0, 16):
-    mcp_U1.setDirection(x, mcp_U1.DIR_INPUT)
+    mcp_U2.setDirection(x, mcp_U1.DIR_OUTPUT)
 
 for x in range(0, 16):
     mcp_U3.setDirection(x, mcp_U3.DIR_OUTPUT)
@@ -33,11 +33,12 @@ while True:
     #     mcp_U3.digitalWrite(x, MCP23S17.LEVEL_HIGH)
     # time.sleep(1)
     #
-    for x in range(0, 16):
-        mcp_U3.digitalWrite(x, MCP23S17.LEVEL_HIGH)
+    # for x in range(0, 16):
+        mcp_U2.digitalWrite(0, MCP23S17.LEVEL_HIGH)
         time.sleep(1)
-        mcp_U3.digitalWrite(x, MCP23S17.LEVEL_LOW)
-    # mcp_U3.digitalWrite(13, MCP23S17.LEVEL_LOW)
+        mcp_U2.digitalWrite(0, MCP23S17.LEVEL_LOW)
+        time.sleep(1)
+    # mcp_U3.digitalWrite(13, MCP23S17.LEVEL_LOW)`
     # time.sleep(1)
     # mcp_U3.digitalWrite(13, MCP23S17.LEVEL_HIGH)
     # if mcp_U1.digitalRead(0) == MCP23S17.LEVEL_LOW:
