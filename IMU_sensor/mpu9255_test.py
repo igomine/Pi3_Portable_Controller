@@ -26,27 +26,34 @@ print("IMU Name: " + imu.IMUName())
 
 
 GPIO.setmode(GPIO.BCM)
+GPIO.cleanup()
+
 for i in range(total_channel_num):
     GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
 
 for i in range(total_channel_num):
     GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+    time.sleep(0.05)
     if (not imu.IMUInit()):
         print(" %d# IMU Init Failed" % i)
-        sys.exit(1)
+        # sys.exit(1)
     else:
         print(" %d# IMU Init Succeeded" % i)
-        time.sleep(0.5)
+    GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+    time.sleep(0.05)
 
 while True:
-    for i in range(total_channel_num):
-        GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
-        time.sleep(0.01)
-        if imu.IMURead():
-            data = imu.getIMUData()
-            fusionPose = data["fusionPose"]
-            if i == 2:
-                print("channel %d, r: %f p: %f y: %f" % (i, math.degrees(fusionPose[0]),
-                                                        math.degrees(fusionPose[1]), math.degrees(fusionPose[2])))
-        GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
-        time.sleep(0.01)
+    # for i in range(total_channel_num):
+    i = 1
+    GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+    time.sleep(0.1)
+    # while not imu.IMURead():
+    #     pass
+    if imu.IMURead():
+        data = imu.getIMUData()
+        fusionPose = data["fusionPose"]
+        if i == 1:
+            print("channel %d, r: %f p: %f y: %f" % (i, math.degrees(fusionPose[0]),
+                                                    math.degrees(fusionPose[1]), math.degrees(fusionPose[2])))
+    GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+    time.sleep(0.1)

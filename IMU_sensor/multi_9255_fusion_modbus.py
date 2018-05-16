@@ -30,9 +30,35 @@ channel_ad0_via_gpio = [9, 10, 11]
 
 q = queue.Queue(10)
 
+SETTINGS_FILE = "RTIMULib"
+print("Using settings file " + SETTINGS_FILE + ".ini")
+if not os.path.exists(SETTINGS_FILE + ".ini"):
+    print("Settings file does not exist, will be created")
+
+s = RTIMU.Settings(SETTINGS_FILE)
+imu = RTIMU.RTIMU(s)
+
+print("IMU Name: " + imu.IMUName())
+
+GPIO.setmode(GPIO.BCM)
+GPIO.cleanup()
+
+for i in range(total_channel_num):
+    GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+
+for i in range(total_channel_num):
+    GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+    time.sleep(0.05)
+    if (not imu.IMUInit()):
+        print(" %d# IMU Init Failed" % i)
+        # sys.exit(1)
+    else:
+        print(" %d# IMU Init Succeeded" % i)
+    GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+    time.sleep(0.05)
 
 class InputLoopThread(threading.Thread):
-    frequency = 0.01
+    frequency = 0.005
     next_due = 0
     tmp = 0
     tmp_crc = 0
@@ -48,36 +74,38 @@ class InputLoopThread(threading.Thread):
         self.total_channel_num = mpu9255_channel_num
         self.ad0_via_gpio = ad0_via_gpio
 
-        SETTINGS_FILE = "RTIMULib"
-        print("Using settings file " + SETTINGS_FILE + ".ini")
-        if not os.path.exists(SETTINGS_FILE + ".ini"):
-            print("Settings file does not exist, will be created")
-        s = RTIMU.Settings(SETTINGS_FILE)
-        self.imu = RTIMU.RTIMU(s)
-        print("IMU Name: " + self.imu.IMUName())
 
-        GPIO.setmode(GPIO.BCM)
-        for i in range(self.total_channel_num):
-            GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
 
-        for i in range(self.total_channel_num):
-            GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
-            time.sleep(0.1)
-            if not self.imu.IMUInit():
-                print(" channel %d IMU Init Failed" % i)
-                sys.exit(1)
-            else:
-                print(" channel %d IMU Init Succeeded" % i)
-            GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
-            time.sleep(0.1)
-
-        self.imu.setSlerpPower(0.02)
-        self.imu.setGyroEnable(True)
-        self.imu.setAccelEnable(True)
-        self.imu.setCompassEnable(True)
-
-        self.poll_interval = self.imu.IMUGetPollInterval()
-        print("Recommended Poll Interval: %dmS\n" % self.poll_interval)
+        # SETTINGS_FILE = "RTIMULib"
+        # print("Using settings file " + SETTINGS_FILE + ".ini")
+        # if not os.path.exists(SETTINGS_FILE + ".ini"):
+        #     print("Settings file does not exist, will be created")
+        # s = RTIMU.Settings(SETTINGS_FILE)
+        # self.imu = RTIMU.RTIMU(s)
+        # print("IMU Name: " + self.imu.IMUName())
+        #
+        # GPIO.setmode(GPIO.BCM)
+        # for i in range(self.total_channel_num):
+        #     GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+        #
+        # for i in range(self.total_channel_num):
+        #     GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+        #     time.sleep(0.1)
+        #     if not self.imu.IMUInit():
+        #         print(" channel %d IMU Init Failed" % i)
+        #         # sys.exit(1)
+        #     else:
+        #         print(" channel %d IMU Init Succeeded" % i)
+        #     GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+        #     time.sleep(0.1)
+        #
+        # self.imu.setSlerpPower(0.02)
+        # self.imu.setGyroEnable(True)
+        # self.imu.setAccelEnable(True)
+        # self.imu.setCompassEnable(True)
+        #
+        # self.poll_interval = self.imu.IMUGetPollInterval()
+        # print("Recommended Poll Interval: %dmS\n" % self.poll_interval)
 
     def stop(self):
         self.__running.clear()
@@ -87,27 +115,42 @@ class InputLoopThread(threading.Thread):
             if self.next_due < time.time():
                 # print("start poll")
                 self.poll()
-                # self.next_due = time.time() + self.frequency
-                self.next_due = time.time() + self.poll_interval*0.001
+                self.next_due = time.time() + self.frequency
+                # self.next_due = time.time() + self.poll_interval*0.001
         return
 
     def poll(self):
-        print("start poll")
+        # print("start poll")
         try:
-            slave = self.server.get_slave(self.slaveid)
+            # slave = self.server.get_slave(self.slaveid)
+            #
+            # # read each mpu9255
+            # for i in range(self.total_channel_num):
+            #     GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+            #     time.sleep(0.01)
+            #     if self.imu.IMURead():
+            #         data = self.imu.getIMUData()
+            #         fusionPose = data["fusionPose"]
+            #         if i == 0:
+            #             print("channel %d, r: %f p: %f y: %f" % (i, math.degrees(fusionPose[0]),
+            #                                                      math.degrees(fusionPose[1]),
+            #                                                      math.degrees(fusionPose[2])))
+            #     GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+            #     time.sleep(0.01)
 
-            # read each mpu9255
-            for i in range(self.total_channel_num):
-                GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+            # while True:
+            for i in range(total_channel_num):
+                GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
                 time.sleep(0.01)
-                if self.imu.IMURead():
-                    data = self.imu.getIMUData()
+                if imu.IMURead():
+                    data = imu.getIMUData()
                     fusionPose = data["fusionPose"]
-                    print("channel %d, r: %f p: %f y: %f" % i, (math.degrees(fusionPose[0]),
-                                                 math.degrees(fusionPose[1]), math.degrees(fusionPose[2])))
-                GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+                    if i == 1:
+                        print("channel %d, r: %f p: %f y: %f" % (i, math.degrees(fusionPose[0]),
+                                                                 math.degrees(fusionPose[1]),
+                                                                 math.degrees(fusionPose[2])))
+                GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
                 time.sleep(0.01)
-
             # # read DI input
             # for i in range(16):
             #     if self.mcp23s17_u1.digitalRead(i) == MCP23S17.LEVEL_HIGH:
