@@ -44,7 +44,7 @@ q = queue.Queue(10)
 
 
 class InputLoopThread(threading.Thread):
-    frequency = 0.005
+    frequency = 0.05
     next_due = 0
     tmp = 0
     tmp_crc = 0
@@ -79,6 +79,22 @@ class InputLoopThread(threading.Thread):
             GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
             time.sleep(0.05)
 
+    def read_byte(self, adr):
+        return bus.read_byte_data(address, adr)
+
+    def read_word(self, adr):
+        high = bus.read_byte_data(address, adr)
+        low = bus.read_byte_data(address, adr + 1)
+        val = (high << 8) + low
+        return val
+
+    def read_word_2c(self, adr):
+        val = self.read_word(adr)
+        if val >= 0x8000:
+            return -((65535 - val) + 1)
+        else:
+            return val
+
     def stop(self):
         self.__running.clear()
 
@@ -92,57 +108,40 @@ class InputLoopThread(threading.Thread):
         return
 
     def poll(self):
-        # print("start poll")
-        try:
-            # slave = self.server.get_slave(self.slaveid)
-            #
-            # # read each mpu9255
-            # for i in range(self.total_channel_num):
-            #     GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
-            #     time.sleep(0.01)
-            #     if self.imu.IMURead():
-            #         data = self.imu.getIMUData()
-            #         fusionPose = data["fusionPose"]
-            #         if i == 0:
-            #             print("channel %d, r: %f p: %f y: %f" % (i, math.degrees(fusionPose[0]),
-            #                                                      math.degrees(fusionPose[1]),
-            #                                                      math.degrees(fusionPose[2])))
-            #     GPIO.setup(self.ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
-            #     time.sleep(0.01)
+        slave = self.server.get_slave(self.slaveid)
+        for i in range(total_channel_num):
+            GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+            time.sleep(0.01)
+            try:
+                accel_xout = self.read_word_2c(accel_xout_h)  # We just need to put H byte address
+                accel_yout = self.read_word_2c(accel_yout_h)  # as we are reading the word data
+                accel_zout = self.read_word_2c(accel_zout_h)
+                print("%d# channel: %d, %d, %d" % (i, accel_xout, accel_yout, accel_zout))
+            except Exception as exc:
+                print("%d# channel: failed" % i)
+            GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+            time.sleep(0.01)
+            if accel_xout > 0:
+                sign_xout = 0
+            else:
+                sign_xout = 1
+            if accel_yout > 0:
+                sign_yout = 0
+            else:
+                sign_yout = 1
+            if accel_zout > 0:
+                sign_zout = 0
+            else:
+                sign_zout = 1
+            slave.set_values('READ_INPUT_REGISTERS', i*6, sign_xout)
+            slave.set_values('READ_INPUT_REGISTERS', i*6+1, accel_xout)
+            slave.set_values('READ_INPUT_REGISTERS', i*6+2, sign_yout)
+            slave.set_values('READ_INPUT_REGISTERS', i*6+3, accel_yout)
+            slave.set_values('READ_INPUT_REGISTERS', i*6+4, sign_zout)
+            slave.set_values('READ_INPUT_REGISTERS', i*6+5, accel_zout)
+            values = slave.get_values('READ_INPUT_REGISTERS', 0, 6*total_channel_num)
 
-            # while True:
-            for i in range(total_channel_num):
-                GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
-                time.sleep(0.01)
-                if imu.IMURead():
-                    data = imu.getIMUData()
-                    fusionPose = data["fusionPose"]
-                    if i == 1:
-                        print("channel %d, r: %f p: %f y: %f" % (i, math.degrees(fusionPose[0]),
-                                                                 math.degrees(fusionPose[1]),
-                                                                 math.degrees(fusionPose[2])))
-                GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
-                time.sleep(0.01)
-            # # read DI input
-            # for i in range(16):
-            #     if self.mcp23s17_u1.digitalRead(i) == MCP23S17.LEVEL_HIGH:
-            #         self.di_value[i] = 1
-            #     else:
-            #         self.di_value[i] = 0
-            # if self.di_value != self.di_lastvalue:
-            #     # change to list copy
-            #     # self.di_lastvalue = self.di_value
-            #     self.di_lastvalue = copy.copy(self.di_value)
-            #     slave.set_values('DISCRETE_INPUTS', 0, self.di_value)
-            #     values = slave.get_values('DISCRETE_INPUTS', 0, len(self.di_value))
-            # # read angvalue
-            # # print(self.read_angvalue())
-            # for i in range(len(self.tle5012_pord_data_lst)):
-            #     slave.set_values('READ_INPUT_REGISTERS', i, self.read_angvalue()[i])
-            # values = slave.get_values('READ_INPUT_REGISTERS', 0, 12)
 
-        except Exception as exc:
-            print("InputLoopThread Error: %s", exc)
 
 
 def main():
@@ -167,7 +166,7 @@ def main():
         slave_1 = server.add_slave(slaveid)
         slave_1.add_block('HOLDING_REGISTERS', cst.HOLDING_REGISTERS, 0, 16)
         slave_1.add_block('DISCRETE_INPUTS', cst.DISCRETE_INPUTS, 0, 16)
-        slave_1.add_block('READ_INPUT_REGISTERS', cst.READ_INPUT_REGISTERS, 0, 16)
+        slave_1.add_block('READ_INPUT_REGISTERS', cst.READ_INPUT_REGISTERS, 0, 6*total_channel_num)
         slave_1.add_block('COILS', cst.COILS, 0, 16)
         # 初始化HOLDING_REGISTERS值
         # 命令行读取COILS的值 get_values 1 2 0 5
