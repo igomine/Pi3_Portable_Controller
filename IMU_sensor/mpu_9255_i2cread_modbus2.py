@@ -44,7 +44,7 @@ q = queue.Queue(10)
 
 
 class InputLoopThread(threading.Thread):
-    frequency = 0.05
+    frequency = 0.01
     next_due = 0
     tmp = 0
     tmp_crc = 0
@@ -100,48 +100,49 @@ class InputLoopThread(threading.Thread):
 
     def run(self):
         while self.__running.is_set():
-            if self.next_due < time.time():
-                # print("start poll")
-                self.poll()
-                self.next_due = time.time() + self.frequency
-                # self.next_due = time.time() + self.poll_interval*0.001
+            # if self.next_due < time.time():
+            #     # print("start poll")
+            #     self.poll()
+            #     self.next_due = time.time() + self.frequency
+            self.poll()
+            time.sleep(0.01)
         return
 
     def poll(self):
-        slave = self.server.get_slave(self.slaveid)
-        for i in range(total_channel_num):
-            GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
-            time.sleep(0.01)
-            try:
+        try:
+            slave = self.server.get_slave(self.slaveid)
+            for i in range(total_channel_num):
+                GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
+                # time.sleep(0.01)
                 accel_xout = self.read_word_2c(accel_xout_h)  # We just need to put H byte address
                 accel_yout = self.read_word_2c(accel_yout_h)  # as we are reading the word data
                 accel_zout = self.read_word_2c(accel_zout_h)
-                print("%d# channel: %d, %d, %d" % (i, accel_xout, accel_yout, accel_zout))
-            except Exception as exc:
-                print("%d# channel: failed" % i)
-            GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
-            time.sleep(0.01)
-            if accel_xout > 0:
-                sign_xout = 0
-            else:
-                sign_xout = 1
-            if accel_yout > 0:
-                sign_yout = 0
-            else:
-                sign_yout = 1
-            if accel_zout > 0:
-                sign_zout = 0
-            else:
-                sign_zout = 1
-            slave.set_values('READ_INPUT_REGISTERS', i*6, sign_xout)
-            slave.set_values('READ_INPUT_REGISTERS', i*6+1, accel_xout)
-            slave.set_values('READ_INPUT_REGISTERS', i*6+2, sign_yout)
-            slave.set_values('READ_INPUT_REGISTERS', i*6+3, accel_yout)
-            slave.set_values('READ_INPUT_REGISTERS', i*6+4, sign_zout)
-            slave.set_values('READ_INPUT_REGISTERS', i*6+5, accel_zout)
-            values = slave.get_values('READ_INPUT_REGISTERS', 0, 6*total_channel_num)
-
-
+                GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+                # time.sleep(0.01)
+                if i == 1:
+                    pass
+                    # print("%d# channel: %d, %d, %d" % (i, accel_xout, accel_yout, accel_zout))
+                if accel_xout > 0:
+                    sign_xout = 0
+                else:
+                    sign_xout = 1
+                if accel_yout > 0:
+                    sign_yout = 0
+                else:
+                    sign_yout = 1
+                if accel_zout > 0:
+                    sign_zout = 0
+                else:
+                    sign_zout = 1
+                slave.set_values('READ_INPUT_REGISTERS', (i * 6), sign_xout)
+                slave.set_values('READ_INPUT_REGISTERS', (i * 6 + 1), int(abs(accel_xout)))
+                slave.set_values('READ_INPUT_REGISTERS', (i * 6 + 2), sign_yout)
+                slave.set_values('READ_INPUT_REGISTERS', (i * 6 + 3), int(abs(accel_yout)))
+                slave.set_values('READ_INPUT_REGISTERS', (i * 6 + 4), sign_zout)
+                slave.set_values('READ_INPUT_REGISTERS', (i * 6 + 5), int(abs(accel_zout)))
+            values = slave.get_values('READ_INPUT_REGISTERS', 0, 18)
+        except Exception as exc:
+            print("%d# channel: failed" % i)
 
 
 def main():
@@ -166,7 +167,7 @@ def main():
         slave_1 = server.add_slave(slaveid)
         slave_1.add_block('HOLDING_REGISTERS', cst.HOLDING_REGISTERS, 0, 16)
         slave_1.add_block('DISCRETE_INPUTS', cst.DISCRETE_INPUTS, 0, 16)
-        slave_1.add_block('READ_INPUT_REGISTERS', cst.READ_INPUT_REGISTERS, 0, 6*total_channel_num)
+        slave_1.add_block('READ_INPUT_REGISTERS', cst.READ_INPUT_REGISTERS, 0, 32)
         slave_1.add_block('COILS', cst.COILS, 0, 16)
         # 初始化HOLDING_REGISTERS值
         # 命令行读取COILS的值 get_values 1 2 0 5
@@ -243,6 +244,7 @@ def main():
         #     else:
         #         sys.stdout.write("unknown command %s\r\n" % args[0])
     finally:
+        print("exit procejor")
         thread_1.stop()
         # thread_2.stop()
         # thread_3.stop()

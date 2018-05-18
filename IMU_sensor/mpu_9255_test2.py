@@ -13,6 +13,10 @@ channel_ad0_via_gpio = [9, 10, 11]
 GPIO.setmode(GPIO.BCM)
 GPIO.cleanup()
 
+GPIO.setup(channel_ad0_via_gpio[0], GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(channel_ad0_via_gpio[1], GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(channel_ad0_via_gpio[2], GPIO.OUT, initial=GPIO.HIGH)
+
 # Initiliazation of I2C bus
 bus = smbus.SMBus(1)
 address = 0x68       # Sensor I2C address
@@ -46,8 +50,8 @@ def read_word_2c(adr):
     else:
         return val
 
-i = 1
-GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.HIGH)
+i = 0
+GPIO.setup(channel_ad0_via_gpio[i], GPIO.OUT, initial=GPIO.LOW)
 
 try:
     chip_id = bus.read_byte_data(address, 0x75)
