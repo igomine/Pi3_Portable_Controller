@@ -15,6 +15,7 @@ import random
 gpio.setmode(gpio.BCM)
 gpio.setup(4, gpio.OUT)
 gpio.output(4, gpio.HIGH)
+float_list = [0]*12
 
 # while True:
 #     print("a")
@@ -60,25 +61,55 @@ last_meter_position = meter_float
 cmd3_position1 = pack('f', meter_float)
 cmd3_position2 = pack('f', meter_float)
 cmd3_position3 = pack('f', meter_float)
+
+for i in range(12):
+    # meter_float = random.uniform(0, 3200)
+    # cmd3_position1 = pack('f', meter_float)
+    float_list[i] = int(random.uniform(0, 3200))
+    print('%d :%f' % (i, float_list[i]))
+
+    float_list[0] = 0
+
 while True:
     # for i in range(1000):
-    cmd3_position1 = pack('f', meter_float)
-    cmd3_position2 = pack('f', meter_float)
+    # cmd3_position1 = pack('f', meter_float)
+    # cmd3_position2 = pack('f', meter_float)
     # print("%d : %.2f" % (i, meter_float))
+    # for i in range(12):
+    #     float_list[i] = int(random.uniform(0, 3200))
+    # if float_list[0] == 0:
+    float_list[0] = 3240
+    # else:
+    # float_list[0] = 0
+
+    print('0 :%f' % (float_list[0]))
+        # print('%d :%f' % (i, float_list[i]))
+    # print('8 :%f' % ( float_list[8]))
+    # print('9 :%f' % ( float_list[9]))
     last_meter_position = meter_float
     rs485tometer.write(cmd1_head)
-    rs485tometer.write(b'\x0c')
-    rs485tometer.write(cmd3_position1)
-    rs485tometer.write(cmd3_position2)
-    rs485tometer.write(cmd3_position3)
-
+    rs485tometer.write(b'\x30')
+    # rs485tometer.write(cmd3_position1)
+    # rs485tometer.write(cmd3_position2)
+    # rs485tometer.write(cmd3_position3)
+    for i in range(12):
+        cmd3_position1 = pack('f', float_list[i])
+        # print('%d :%f' % (i, cmd3_position1))
+        rs485tometer.write(cmd3_position1)
+        # meter_float = random.uniform(0, 3200)
+        # cmd3_position1 = pack('f', meter_float)
+        # float_list[i] = random.uniform(0, 3200)
+        # print('%d :%f' % (i, float_list[i]))
     # rs485tometer.write(cmd1_head)
     # rs485tometer.write(b'\x06')
     # rs485tometer.write(cmd3_position)
 
-    meter_float = random.uniform(0, 3200)
+    # meter_float = random.uniform(0, 3200)
     #print("%d : %.2f" % (i, meter_float))
-    time.sleep(0.1)
+
+    time.sleep(0.05)
+
+    # time.sleep(1)
 
 
 
