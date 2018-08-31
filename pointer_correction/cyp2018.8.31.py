@@ -11,10 +11,8 @@ import random
 import serial
 from struct import pack, unpack
 
-
-
-# ser = serial.Serial('/dev/serial0', 115200, timeout=1)
-# ser.parity = serial.PARITY_ODD
+ser = serial.Serial('/dev/serial0', 115200, timeout=1)
+ser.parity = serial.PARITY_ODD
 
 
 root = Tk()
