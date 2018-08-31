@@ -9,10 +9,22 @@ import threading
 import time
 import random
 import serial
+import serial.tools.list_ports
 from struct import pack, unpack
 
-ser = serial.Serial('/dev/serial0', 115200, timeout=1)
-ser.parity = serial.PARITY_ODD
+if platform.system() == "Windows":
+    plist = list(serial.tools.list_ports.comports())
+    if len(plist) <= 0:
+        print("没有发现端口!")
+    else:
+        plist_0 = list(plist[0])
+        serialName = plist_0[0]
+        ser = serial.Serial(serialName, 9600, timeout=60)
+        print("可用端口名>>>", ser.name)
+elif platform.system() == "Linux":
+    # ser = serial.Serial('/dev/serial0', 115200, timeout=1)
+    ser = serial.Serial()
+    ser.parity = serial.PARITY_ODD
 
 
 root = Tk()
@@ -73,7 +85,7 @@ def write2_data():
     ser.write(cmd2_direct)
     time.sleep(6)
 
-
+# step2 write button call-back
 def write2():
     # Initialization: send to serial_port and show in lb2
     global count
@@ -90,15 +102,17 @@ def write2():
     lb2.insert(END, "2.Initialization")
     lb2.insert(END, '   subsection: ' + ' ' + nu)
     lb2.insert(END, '   direction: ' + ' ' + d)
+    # thread used to fill step value table
     t = threading.Thread(target=segmentation)
     t.start()
     count = -1
+    # thread used to send serial cmd
     data1 = threading.Thread(target=write2_data)
     data1.start()
 
 
+# highlight step value table
 def function():
-    ##Correction: highlight
     nu = int(numberChosen.get())
     if -1 < count <= nu:
         secondlists[count]['bg'] = 'red'
@@ -144,6 +158,7 @@ def make_zero():
     data2.start()
 
 
+# step3 send serial cmd
 def write3_data():
     # Correction: communication format
     global n
@@ -170,6 +185,7 @@ def write3_data():
     time.sleep(6)
 
 
+# add step value
 def add():
     global n
     m = int(numChosen.get())
@@ -184,6 +200,7 @@ def add():
     data3.start()
 
 
+# sub step value
 def minus():
     global n
     m = int(numChosen.get())
@@ -198,6 +215,7 @@ def minus():
     data3.start()
 
 
+# switch segment ->
 def next():
     global count
     nu = int(numberChosen.get())
@@ -215,6 +233,7 @@ def next():
     data3.start()
 
 
+# switch segment <-
 def last():
     global count
     nu = int(numberChosen.get())
@@ -238,6 +257,7 @@ def last():
     data3.start()
 
 
+# step3 send serial cmd
 def write_data():
     # Correction: communication format
     nu = int(numberChosen.get())
@@ -257,6 +277,7 @@ def write_data():
     time.sleep(3)
 
 
+# step 3 write button call back
 def write():
     # Write: send array and show in lb2
     lb2.delete(7, END)
@@ -269,12 +290,15 @@ def write():
     data4 = threading.Thread(target=write_data)
     data4.start()
 
+
 # step 1:Serial
 sps = Label(root, text='1.Serial port setting')
 sps.place(x=10, y=20, width=130, height=30)
 
 sep = Label(root, text='serial_port')
 sep.place(x=10, y=60, width=70, height=30)
+
+# add combobox 1
 port = tk.StringVar()
 portChosen = ttk.Combobox(root, width=5, height=30, textvariable=port, state='readonly')
 portChosen['values'] = ('COM3', 'COM6', 'COM8')
@@ -365,7 +389,7 @@ btn10.place(x=75, y=540, width=50, height=30)
 btn9 = Button(root, text="Exit", bg='red', command=root.quit)
 btn9.place(x=640, y=540, width=50, height=30)
 
-
+# step value table 2x11
 a = 200
 en11 = Entry(root)
 en11.place(x=a, y=50, width=50, height=30)
@@ -418,6 +442,7 @@ secondlists = [en1, en2, en3, en4, en5, en6, en7, en8, en9, en10, en21]
 #lb1 = Listbox(root)
 # lb1.place(x=a, y=170, width=200, height=350)
 
+# info output panel
 lb2 = Listbox(root)
 lb2.place(x=a, y=170, width=550, height=350)
 
