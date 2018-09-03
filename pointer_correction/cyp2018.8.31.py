@@ -302,7 +302,10 @@ sep.place(x=10, y=60, width=70, height=30)
 port = tk.StringVar()
 portChosen = ttk.Combobox(root, width=10, height=30, textvariable=port, state='readonly')
 # portChosen['values'] = ('COM3', 'COM6', 'COM8')
-portChosen['values'] = plist[0].device
+if platform.system() == "Windows":
+    portChosen['values'] = plist[0].device
+elif platform.system() == "Linux":
+    portChosen['values'] = "default"
 portChosen.place(x=80, y=60)
 portChosen.current(0)
 
