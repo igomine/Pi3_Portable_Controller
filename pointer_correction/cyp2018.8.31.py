@@ -12,29 +12,6 @@ import serial
 import serial.tools.list_ports
 from struct import pack, unpack
 
-if platform.system() == "Windows":
-    plist = list(serial.tools.list_ports.comports())
-    if len(plist) <= 0:
-        print("没有发现端口!")
-    else:
-        plist_0 = list(plist[0])
-        serialName = plist_0[0]
-        ser = serial.Serial(serialName, 9600, timeout=60)
-        print("可用端口名>>>", ser.name)
-elif platform.system() == "Linux":
-    # ser = serial.Serial('/dev/serial0', 115200, timeout=1)
-    ser = serial.Serial()
-    ser.parity = serial.PARITY_ODD
-
-
-root = Tk()
-root.title("Tkinter")
-root.minsize(800, 600)
-#root.geometry("800x600")
-root.resizable(False, False)
-n = random.randint(1, 100)
-count = 0
-
 
 def serial_port_open():
     #ser = serial.Serial('/dev/serial0', 115200, timeout=1)
@@ -291,32 +268,58 @@ def write():
     data4.start()
 
 
-# step 1:Serial
+if platform.system() == "Windows":
+    plist = list(serial.tools.list_ports.comports())
+    if len(plist) <= 0:
+        print("没有发现端口!")
+    else:
+        pass
+        # plist_0 = list(plist[0])
+        # serialName = plist_0[0]
+        # ser = serial.Serial(serialName, 9600, timeout=60)
+        # print("可用端口名>>>", ser.name)
+elif platform.system() == "Linux":
+    # ser = serial.Serial('/dev/serial0', 115200, timeout=1)
+    ser = serial.Serial()
+    ser.parity = serial.PARITY_ODD
+
+
+root = Tk()
+root.title("仪表校正程序")
+root.minsize(800, 600)
+#root.geometry("800x600")
+root.resizable(False, False)
+n = random.randint(1, 100)
+count = 0
+
+# step 1:Serial init
 sps = Label(root, text='1.Serial port setting')
 sps.place(x=10, y=20, width=130, height=30)
 
+# add combobox serial port
 sep = Label(root, text='serial_port')
 sep.place(x=10, y=60, width=70, height=30)
-
-# add combobox 1
 port = tk.StringVar()
-portChosen = ttk.Combobox(root, width=5, height=30, textvariable=port, state='readonly')
-portChosen['values'] = ('COM3', 'COM6', 'COM8')
+portChosen = ttk.Combobox(root, width=10, height=30, textvariable=port, state='readonly')
+# portChosen['values'] = ('COM3', 'COM6', 'COM8')
+portChosen['values'] = plist[0].device
 portChosen.place(x=80, y=60)
 portChosen.current(0)
 
+# add combobox baud_rate
 sub = Label(root, text='baud_rate')
 sub.place(x=10, y=100, width=70, height=30)
 bur = tk.StringVar()
-burChosen = ttk.Combobox(root, width=5, height=30, textvariable=bur, state='readonly')
+burChosen = ttk.Combobox(root, width=10, height=30, textvariable=bur, state='readonly')
 burChosen['values'] = (9600, 19200, 38400, 57600, 115200, 'Custom')
 burChosen.place(x=80, y=100)
 burChosen.current(4)
 
-drt = Label(root, text='checkout')
+# add combobox parity
+drt = Label(root, text='parity')
 drt.place(x=10, y=140, width=70, height=30)
 chb = tk.StringVar()
-chbChosen = ttk.Combobox(root, width=5, height=30, textvariable=chb, state='readonly')
+chbChosen = ttk.Combobox(root, width=10, height=30, textvariable=chb, state='readonly')
 chbChosen['values'] = ('None', 'Even', 'Odd', 'Mark', 'Space')
 chbChosen.place(x=80, y=140)
 chbChosen.current(2)
