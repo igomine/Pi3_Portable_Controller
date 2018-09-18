@@ -13,7 +13,66 @@ import serial.tools.list_ports
 from struct import pack, unpack
 
 
+plc_comm_flag = False
+float_pointer_position = 0.0
 
+
+class TimingSend485Thread(threading.Thread):
+    frequency = 0.1
+    next_due = 0
+
+    def __init__(self):
+        # change for multi threading
+        super(TimingSend485Thread, self).__init__()
+        self.__running = threading.Event()
+        self.__running.clear()
+
+    def stop_send(self):
+        self.__running.clear()
+
+    def start_send(self):
+        self.__running.set()
+
+    def run(self):
+        while True:
+            time.sleep(1)
+            while self.__running.is_set():
+                if self.next_due < time.time():
+                    # print("start poll")
+                    self.poll()
+                    self.next_due = time.time() + self.frequency
+                    # time.sleep(0.05)
+        # return
+
+    def poll(self):
+        try:
+            # print("sending")
+            cmd3_head = b'UUUU2'
+            ser.write(cmd3_head)
+            ser.write(b'\x01')
+            cmd3_position1 = pack('f', float_pointer_position)
+            ser.write(cmd3_position1)
+            # time.sleep(0.1)
+        except Exception as exc:
+            print("TimingSend485Thread Error: %s", exc)
+
+
+def btnCommstatusCallBack():
+    global plc_comm_flag
+    if plc_comm_flag:
+        plc_comm_flag = False
+        # btnCommstatus_strvar.set("PC")
+        btnCommstatus["text"] = "PC"
+        # if btnSerialOpen.getboolean():
+        if ser.is_open:
+            t1.stop_send()
+            lb2.insert(END, "stop timing sending thread")
+    else:
+        plc_comm_flag = True
+        btnCommstatus["text"] = "PLC"
+        if ser.is_open:
+            t1.start_send()
+            lb2.insert(END, "start timing sending thread")
 
 
 def serial_port_open():
@@ -65,17 +124,19 @@ def write2_data():
         cmd2_direct = b'\x52'
     else:
         cmd2_direct = b'\x4C'
-
-    ser.write(cmd2_head)
-    ser.write(b'\x03')
-    ser.write(b'\x02')
-    ser.write(cmd2_position3)
-    ser.write(cmd2_direct)
-    time.sleep(6)
+    if plc_comm_flag:
+        pass
+    else:
+        ser.write(cmd2_head)
+        ser.write(b'\x03')
+        ser.write(b'\x02')
+        ser.write(cmd2_position3)
+        ser.write(cmd2_direct)
+        time.sleep(6)
 
 
 # step2 set button call-back
-def write2():
+def btnset_callback():
     # Initialization: send to serial_port and show in lb2
     # btnSet.state(['disabled'])
     # numberChosen.state(['disabled'])
@@ -185,11 +246,16 @@ def write3_data():
     '''
 
     cmd3_position2 = pack('f', n)
-    cmd3_head = b'UUUU2'
-    ser.write(cmd3_head)
-    ser.write(b'\x01')
-    ser.write(cmd3_position2)
-    time.sleep(6)
+    # float_pointer_position = pack('f', n)
+    if plc_comm_flag:
+        global float_pointer_position
+        float_pointer_position = n
+    else:
+        cmd3_head = b'UUUU2'
+        ser.write(cmd3_head)
+        ser.write(b'\x01')
+        ser.write(cmd3_position2)
+        time.sleep(6)
 
 
 # add step value
@@ -306,7 +372,10 @@ try:
     root.resizable(False, False)
     n = random.randint(1, 100)
     count = 0
-
+    # flag_plc_comm = False
+    # float_pointer_position = 0.0
+    t1 = TimingSend485Thread()
+    t1.start()
 
     # step 1:Serial init
     sps = ttk.Label(root, text='1.Serial port setting', background='#34A2DA')
@@ -397,7 +466,7 @@ try:
     directionChosen.current(0)
     directionChosen.state(['disabled'])
 
-    btnSet = ttk.Button(root, text='Set', command=write2)
+    btnSet = ttk.Button(root, text='Set', command=btnset_callback)
     btnSet.place(x=65, y=340, width=50, height=30)
 
     # step 3:Correction
@@ -422,21 +491,25 @@ try:
     btn6 = ttk.Button(root, text='-',  command=minus)
     btn6.place(x=130, y=460, width=50, height=30)
 
+    # step select combobox
     num = tk.StringVar()
     numChosen = ttk.Combobox(root, width=4, height=30, textvariable=num, state='readonly')
-    numChosen['values'] = (5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
+    numChosen['values'] = (5, 1, 2, 3, 4, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
     numChosen.place(x=105, y=505)
     numChosen.current(5)
-    numChosen.state(['disabled'])
+    # numChosen.state(['disabled'])
 
     # Write
     # btnSet = ttk.Button(root, text='set', command=write2)
-    btnEraseFlash = ttk.Button(root, text='擦除',  command=erase_flash)
-    btnEraseFlash.place(x=10, y=540, width=80, height=30)
+
     btnWriteFlash = ttk.Button(root, text="写入",  command=write_flash)
     btnWriteFlash.place(x=120, y=540, width=80, height=30)
-
-
+    btnEraseFlash = ttk.Button(root, text='擦除',  command=erase_flash)
+    btnEraseFlash.place(x=10, y=540, width=80, height=30)
+    btnCommstatus_strvar = tk.StringVar()
+    btnCommstatus_strvar = "PC"
+    btnCommstatus = ttk.Button(root, text=btnCommstatus_strvar, command=btnCommstatusCallBack)
+    btnCommstatus.place(x=230, y=540, width=100, height=30)
     # Exit
     # btn9 = Button(root, text="Exit", bg='red', command=root.quit)
     # btn9.place(x=640, y=540, width=50, height=30)
@@ -500,6 +573,7 @@ try:
 
     root.mainloop()
 finally:
+    t1.stop_send()
     ser.close()
     root.destroy()
 

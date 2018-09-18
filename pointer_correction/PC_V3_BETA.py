@@ -13,9 +13,6 @@ import serial.tools.list_ports
 from struct import pack, unpack
 
 
-
-
-
 def serial_port_open():
     if platform.system() == "Windows":
         ser.baudrate = bauChosen.get()
@@ -307,7 +304,6 @@ try:
     n = random.randint(1, 100)
     count = 0
 
-
     # step 1:Serial init
     sps = ttk.Label(root, text='1.Serial port setting', background='#34A2DA')
     sps.place(x=10, y=20, width=130, height=30)
@@ -422,20 +418,21 @@ try:
     btn6 = ttk.Button(root, text='-',  command=minus)
     btn6.place(x=130, y=460, width=50, height=30)
 
+    # step select combobox
     num = tk.StringVar()
     numChosen = ttk.Combobox(root, width=4, height=30, textvariable=num, state='readonly')
-    numChosen['values'] = (5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
+    numChosen['values'] = (5, 1, 2, 3, 4, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
     numChosen.place(x=105, y=505)
     numChosen.current(5)
-    numChosen.state(['disabled'])
+    # numChosen.state(['disabled'])
 
     # Write
     # btnSet = ttk.Button(root, text='set', command=write2)
-    btnEraseFlash = ttk.Button(root, text='擦除',  command=erase_flash)
-    btnEraseFlash.place(x=10, y=540, width=80, height=30)
+
     btnWriteFlash = ttk.Button(root, text="写入",  command=write_flash)
     btnWriteFlash.place(x=120, y=540, width=80, height=30)
-
+    btnEraseFlash = ttk.Button(root, text='擦除',  command=erase_flash)
+    btnEraseFlash.place(x=10, y=540, width=80, height=30)
 
     # Exit
     # btn9 = Button(root, text="Exit", bg='red', command=root.quit)
