@@ -1,3 +1,3 @@
 import platform
 
-# print("platform.platform()=%s", platform.system())
+print("platform.platform()=%s", platform.system())
