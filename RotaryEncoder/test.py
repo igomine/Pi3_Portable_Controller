@@ -3,17 +3,17 @@ import RPi.GPIO as GPIO
 from KY040 import KY040
 
 
-CLOCKPIN = 5
-DATAPIN = 6
-SWITCHPIN = 13
+CLOCKPIN = 14
+DATAPIN = 15
+SWITCHPIN = 10
 
 
-def rotaryChange(direction):
-    print("turned - " + str(direction))
+def rotaryChange(direction, count):
+    print("turned - " + str(count))
 
 
-def switchPressed():
-    print("button pressed")
+def switchPressed(count):
+    print("button pressed - " + str(count))
 
 
 GPIO.setmode(GPIO.BCM)
