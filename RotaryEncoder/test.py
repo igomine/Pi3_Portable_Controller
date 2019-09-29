@@ -1,7 +1,7 @@
 from time import sleep
 import RPi.GPIO as GPIO
 from KY040 import KY040
-
+# version 2019.9.29
 
 CLOCKPIN = 14
 DATAPIN = 15
