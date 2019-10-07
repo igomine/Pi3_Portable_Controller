@@ -147,7 +147,7 @@ class InputLoopThread(threading.Thread):
         self.slaveid = slaveid
         self.rotary_number = rotary_number
         self.rotary_pin = rotary_pin
-        self.pulse_count = [0] * self.rotary_number
+        self.pulse_count = [32000] * self.rotary_number
         GPIO.setmode(GPIO.BCM)
         for i in range(self.rotary_number):
             GPIO.setup(self.rotary_pin[i][0], GPIO.IN)
@@ -170,10 +170,14 @@ class InputLoopThread(threading.Thread):
         GPIO.add_event_detect(self.rotary_pin[0][0], GPIO.BOTH, callback=self.PinACallback_chn0, bouncetime=5)
         GPIO.add_event_detect(self.rotary_pin[0][2], GPIO.FALLING, callback=self.PinDCallback_chn0, bouncetime=300)
         while self.__running.is_set():
-            time.sleep(10)
+            # time.sleep(10)
+            slave = self.server.get_slave(self.slaveid)
+            slave.set_values('HOLDING_REGISTERS', 0, self.pulse_count[0])
+            values = slave.get_values('HOLDING_REGISTERS', 0, 1)
         return
 
     def PinACallback_chn0(self, pin):
+
         if GPIO.input(self.rotary_pin[0][0]) == 1:
             data = GPIO.input(self.rotary_pin[0][1])
             if data == 1:
@@ -188,8 +192,12 @@ class InputLoopThread(threading.Thread):
                 self.pulse_count[0] = self.pulse_count[0] - 1
         print(self.pulse_count)
 
+
     def PinDCallback_chn0(self, pin):
         print("key_press!")
+        slave = self.server.get_slave(self.slaveid)
+        slave.set_values('HOLDING_REGISTERS', 1, 1)
+        values = slave.get_values('HOLDING_REGISTERS', 1, 1)
 
 
     # def poll(self):
