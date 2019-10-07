@@ -10,7 +10,7 @@ class KY040:
     CLOCKWISE = 0
     ANTICLOCKWISE = 1
 
-    def __init__(self, clockPin, dataPin, switchPin=None, rotaryCallback=None, switchCallback=None, rotaryBouncetime=10, switchBouncetime=300):
+    def __init__(self, clockPin, dataPin, switchPin=None, rotaryCallback=None, switchCallback=None, rotaryBouncetime=5, switchBouncetime=300):
         # persist values
         self.clockPin = clockPin
         self.dataPin = dataPin
