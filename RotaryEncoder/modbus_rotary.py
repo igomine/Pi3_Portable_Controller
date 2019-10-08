@@ -26,12 +26,15 @@ import queue
 import random
 
 q = queue.Queue(10)
-rotary_number = 1
+rotary_number = 4
 rotary_pin_list = [None] * rotary_number
 for i in range(rotary_number):
     rotary_pin_list[i] = [None] * 3
 
 rotary_pin_list[0] = [2, 3, 15]
+rotary_pin_list[1] = [14, 10, 9]
+rotary_pin_list[2] = [11, 8, 7]
+rotary_pin_list[3] = [12, 13, 19]
 print(rotary_pin_list)
 
 class OutputLoopThread(threading.Thread):
@@ -150,9 +153,9 @@ class InputLoopThread(threading.Thread):
         self.pulse_count = [32000] * self.rotary_number
         GPIO.setmode(GPIO.BCM)
         for i in range(self.rotary_number):
-            GPIO.setup(self.rotary_pin[i][0], GPIO.IN)
-            GPIO.setup(self.rotary_pin[i][1], GPIO.IN)
-            GPIO.setup(self.rotary_pin[i][2], GPIO.IN)
+            GPIO.setup(self.rotary_pin[i][0], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(self.rotary_pin[i][1], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(self.rotary_pin[i][2], GPIO.IN, pull_up_down=GPIO.PUD_UP)
             # GPIO.setup(self.rotary_pin[i][0], GPIO.IN, pull_up_down=GPIO.PUD_UP)
             # GPIO.setup(self.rotary_pin[i][1], GPIO.IN, pull_up_down=GPIO.PUD_UP)
             # GPIO.setup(self.rotary_pin[i][2], GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -169,11 +172,21 @@ class InputLoopThread(threading.Thread):
     def run(self):
         GPIO.add_event_detect(self.rotary_pin[0][0], GPIO.BOTH, callback=self.PinACallback_chn0, bouncetime=5)
         GPIO.add_event_detect(self.rotary_pin[0][2], GPIO.FALLING, callback=self.PinDCallback_chn0, bouncetime=300)
+        GPIO.add_event_detect(self.rotary_pin[1][0], GPIO.BOTH, callback=self.PinACallback_chn1, bouncetime=5)
+        GPIO.add_event_detect(self.rotary_pin[1][2], GPIO.FALLING, callback=self.PinDCallback_chn1, bouncetime=300)
+        GPIO.add_event_detect(self.rotary_pin[2][0], GPIO.BOTH, callback=self.PinACallback_chn2, bouncetime=5)
+        GPIO.add_event_detect(self.rotary_pin[2][2], GPIO.FALLING, callback=self.PinDCallback_chn2, bouncetime=300)
+        GPIO.add_event_detect(self.rotary_pin[3][0], GPIO.BOTH, callback=self.PinACallback_chn3, bouncetime=5)
+        GPIO.add_event_detect(self.rotary_pin[3][2], GPIO.FALLING, callback=self.PinDCallback_chn3, bouncetime=300)
+
         while self.__running.is_set():
             # time.sleep(10)
             slave = self.server.get_slave(self.slaveid)
             slave.set_values('HOLDING_REGISTERS', 0, self.pulse_count[0])
-            values = slave.get_values('HOLDING_REGISTERS', 0, 1)
+            slave.set_values('HOLDING_REGISTERS', 2, self.pulse_count[1])
+            slave.set_values('HOLDING_REGISTERS', 4, self.pulse_count[2])
+            slave.set_values('HOLDING_REGISTERS', 6, self.pulse_count[3])
+            values = slave.get_values('HOLDING_REGISTERS', 0, 8)
         return
 
     def PinACallback_chn0(self, pin):
@@ -190,16 +203,79 @@ class InputLoopThread(threading.Thread):
                 self.pulse_count[0] = self.pulse_count[0] + 1
             else:
                 self.pulse_count[0] = self.pulse_count[0] - 1
-        print(self.pulse_count)
-
+        # print(self.pulse_count)
 
     def PinDCallback_chn0(self, pin):
-        print("key_press!")
+        # print("ch0_key_press!")
         slave = self.server.get_slave(self.slaveid)
         slave.set_values('HOLDING_REGISTERS', 1, 1)
-        values = slave.get_values('HOLDING_REGISTERS', 1, 1)
+        # values = slave.get_values('HOLDING_REGISTERS', 1, 1)
 
+    def PinACallback_chn1(self, pin):
 
+        if GPIO.input(self.rotary_pin[1][0]) == 1:
+            data = GPIO.input(self.rotary_pin[1][1])
+            if data == 1:
+                self.pulse_count[1] = self.pulse_count[1] - 1
+            else:
+                self.pulse_count[1] = self.pulse_count[1] + 1
+        else:
+            data = GPIO.input(self.rotary_pin[1][1])
+            if data == 1:
+                self.pulse_count[1] = self.pulse_count[1] + 1
+            else:
+                self.pulse_count[1] = self.pulse_count[1] - 1
+        # print(self.pulse_count)
+
+    def PinDCallback_chn1(self, pin):
+        # print("ch1_key_press!")
+        slave = self.server.get_slave(self.slaveid)
+        slave.set_values('HOLDING_REGISTERS', 3, 1)
+        # values = slave.get_values('HOLDING_REGISTERS', 3, 1)
+
+    def PinACallback_chn2(self, pin):
+
+        if GPIO.input(self.rotary_pin[2][0]) == 1:
+            data = GPIO.input(self.rotary_pin[2][1])
+            if data == 1:
+                self.pulse_count[2] = self.pulse_count[2] - 1
+            else:
+                self.pulse_count[2] = self.pulse_count[2] + 1
+        else:
+            data = GPIO.input(self.rotary_pin[2][1])
+            if data == 1:
+                self.pulse_count[2] = self.pulse_count[2] + 1
+            else:
+                self.pulse_count[2] = self.pulse_count[2] - 1
+                # print(self.pulse_count)
+
+    def PinDCallback_chn2(self, pin):
+        # print("ch1_key_press!")
+        slave = self.server.get_slave(self.slaveid)
+        slave.set_values('HOLDING_REGISTERS', 5, 1)
+        # values = slave.get_values('HOLDING_REGISTERS', 3, 1)
+
+    def PinACallback_chn3(self, pin):
+
+        if GPIO.input(self.rotary_pin[3][0]) == 1:
+            data = GPIO.input(self.rotary_pin[3][1])
+            if data == 1:
+                self.pulse_count[3] = self.pulse_count[3] - 1
+            else:
+                self.pulse_count[3] = self.pulse_count[3] + 1
+        else:
+            data = GPIO.input(self.rotary_pin[3][1])
+            if data == 1:
+                self.pulse_count[3] = self.pulse_count[3] + 1
+            else:
+                self.pulse_count[3] = self.pulse_count[3] - 1
+                # print(self.pulse_count)
+
+    def PinDCallback_chn3(self, pin):
+        # print("ch1_key_press!")
+        slave = self.server.get_slave(self.slaveid)
+        slave.set_values('HOLDING_REGISTERS', 7, 1)
+        # values = slave.get_values('HOLDING_REGISTERS', 3, 1)
     # def poll(self):
     #     try:
     #         slave = self.server.get_slave(self.slaveid)
