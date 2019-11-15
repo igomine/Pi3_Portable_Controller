@@ -66,7 +66,7 @@ class modbusserver(object):
         self.senddata[0:5] = commandsend
         # get metor from PC
         self.metor_value = list(self.slave.get_values('HOLDING_REGISTERS', 0, 16))
-        print("metor", self.metor_value)
+        # print("metor", self.metor_value)
         if (self.metor_value != self.last_metor_value):
             for i in range(0, 16):
                 self.senddata[2 * i + 5] = self.metor_value[i] & 0xff
@@ -98,12 +98,12 @@ class modbusserver(object):
             self.senddata[40] = self.led[3]
             self.last_coils_value = copy.copy(self.coils_value)
 
-        print("senddata = ", self.senddata)
+        # print("senddata = ", self.senddata)
         # Master start SPI transport
         GPIO.output(7, GPIO.LOW)
         self.recvdata = self.spi.xfer2(self.senddata)
         GPIO.output(7, GPIO.HIGH)
-        print("recvdata", self.recvdata)
+        # print("recvdata", self.recvdata)
 
     # analysis receive data
     def recvmcu(self):
@@ -137,8 +137,8 @@ class modbusserver(object):
                 # package recvdata
                 self.slave.set_values('DISCRETE_INPUTS', 0, self.key)
 
-        print("ai = ", self.ai)
-        print("key = ", self.key)
+        # print("ai = ", self.ai)
+        # print("key = ", self.key)
 
 
 def main():
