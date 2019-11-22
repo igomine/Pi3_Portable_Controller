@@ -133,8 +133,7 @@ class modbusserver(object):
                 self.key[0:8] = self.key_tmp[0]
                 self.key[8:16] = self.key_tmp[1]
                 self.key[16:24] = self.key_tmp[2]
-                self.key[24:32] = self.key_tmp[3]
-                # package recvdata
+                self.key[24:32] = self.key_tmp[3]                # package recvdaa
                 self.slave.set_values('DISCRETE_INPUTS', 0, self.key)
 
         # print("ai = ", self.ai)
