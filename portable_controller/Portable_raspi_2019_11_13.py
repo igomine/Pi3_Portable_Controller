@@ -24,6 +24,7 @@ import itertools
 import copy
 import socket
 import os
+from periphery import SPI
 import queue
 import random
 
@@ -35,11 +36,14 @@ class modbusserver(object):
     def __init__(self, server, slaveid):
         self.server = server
         self.slaveid = slaveid
-        self.spi = spidev.SpiDev()
-        self.spi.open(0, 0)
-        self.spi.mode = 0b01
-        self.spi.max_speed_hz = 500000
-        self.spi.cshigh = False
+        # self.spi = spidev.SpiDev()
+        # self.spi.open(0, 0)
+        # self.spi.mode = 0b01
+        # self.spi.bits_per_word = 8
+        # self.spi.lsbfirst = False
+        # self.spi.max_speed_hz = 1000000
+        # self.spi.cshigh = False
+        self.spi = SPI("/dev/spidev0.0", 1, 1000000)
         self.senddata = [0] * 41
         self.recvdata = [0] * 41
         self.metor_value = [0] * 16
@@ -59,7 +63,7 @@ class modbusserver(object):
         self.slave = self.server.get_slave(self.slaveid)
 
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(7, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(7, GPIO.IN)
 
     def sendtomcu(self):
         # add command word "UUUU3"
@@ -100,9 +104,11 @@ class modbusserver(object):
 
         # print("senddata = ", self.senddata)
         # Master start SPI transport
-        GPIO.output(7, GPIO.LOW)
-        self.recvdata = self.spi.xfer2(self.senddata)
-        GPIO.output(7, GPIO.HIGH)
+        # GPIO.output(7, GPIO.LOW)
+        # self.recvdata = self.spi.xfer2(self.senddata, 0, 90000, 8)
+        # self.recvdata = self.spi.xfer2(self.senddata)
+        self.recvdata = self.spi.transfer(self.senddata)
+        # GPIO.output(7, GPIO.HIGH)
         # print("recvdata", self.recvdata)
 
     # analysis receive data
@@ -173,9 +179,10 @@ def main():
         pcontroller = modbusserver(server, slaveid)
 
         while True:
-            pcontroller.sendtomcu()
-            pcontroller.recvmcu()
-            time.sleep(0.1)
+            if GPIO.input(7) == GPIO.LOW:
+                pcontroller.sendtomcu()
+                pcontroller.recvmcu()
+                time.sleep(1)
 
     finally:
         server.stop()
