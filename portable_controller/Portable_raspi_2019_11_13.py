@@ -5,7 +5,7 @@
     spi communication between Raspiberry and MCU
         2019.7.22 hzm
 
-        zrd 2019.11.25
+        zrd 2019.12.2
 
 
 """
