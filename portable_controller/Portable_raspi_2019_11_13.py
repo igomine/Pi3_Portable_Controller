@@ -43,7 +43,7 @@ class modbusserver(object):
         # self.spi.lsbfirst = False
         # self.spi.max_speed_hz = 1000000
         # self.spi.cshigh = False
-        self.spi = SPI("/dev/spidev0.0", 1, 1000000)
+        self.spi = SPI("/dev/spidev0.0", 1, 125000)
         self.senddata = [0] * 41
         self.recvdata = [0] * 41
         self.metor_value = [0] * 16
@@ -182,7 +182,7 @@ def main():
             if GPIO.input(7) == GPIO.LOW:
                 pcontroller.sendtomcu()
                 pcontroller.recvmcu()
-                time.sleep(1)
+                time.sleep(0.01)
 
     finally:
         server.stop()
