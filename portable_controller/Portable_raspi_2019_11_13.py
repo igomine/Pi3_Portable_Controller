@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf_8 -*-
 """
-    Raspiberry is moubus tcp server, PC is client
-    spi communication between Raspiberry and MCU
-        2019.7.22 hzm
+    change spidev to periphery import SPI
 
-        zrd 2019.12.2
+        zrd 2020.3.31
 
 
 """
