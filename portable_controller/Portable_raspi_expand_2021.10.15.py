@@ -1,14 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf_8 -*-
 """
-    based on 2019.11.13
+    based on Portable_raspi_2019.11.13
     modify frame to [0x55]*10 + data + CRC + [0xAA]*10
     add CRC in the end of data
 
         zrd 2021.10.15
-
 """
-
+"""
+    before this version, the frame is:
+    Pi to MCU command words: total 41 bytes
+        typedef  struct PiToStm32
+        {
+            __IO uint8_t 	Frame_Head[5];
+            __IO uint8_t 	Metor[16];
+            __IO uint8_t	DigitalLED[16];
+            __IO uint8_t	DO[4];
+        }SPI1_PiToStm32_TypeDef;
+    MCU to PI command words: total 41 bytes
+    typedef struct Stm32ToPi
+    {
+        __IO uint8_t 	Frame_Head[5];
+        __IO uint16_t 	AI[11];
+        __IO uint8_t	DI[4];
+        __IO uint8_t	bak[10];
+    }SPI1_Stm32ToPi_TypeDef;
+    
+    in version 2021.10.15,change frame to 
+"""
 import serial
 from struct import pack, unpack
 import sys
