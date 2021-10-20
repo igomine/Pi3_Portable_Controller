@@ -5,7 +5,7 @@
     modify frame to [0x55]*10 + data + CRC + [0xAA]*10
     add CRC in the end of data
 
-        zrd 2021.10.15
+        zrd 2021.10.19
 """
 """
     before this version, the frame is:
@@ -17,6 +17,7 @@
             __IO uint8_t	DigitalLED[16];
             __IO uint8_t	DO[4];
         }SPI1_PiToStm32_TypeDef;
+    ----
     MCU to PI command words: total 41 bytes
     typedef struct Stm32ToPi
     {
@@ -25,10 +26,29 @@
         __IO uint8_t	DI[4];
         __IO uint8_t	bak[10];
     }SPI1_Stm32ToPi_TypeDef;
-    
+==============================================================
     in version 2021.10.15,change frame to 
+    Pi to MCU command words: total 50 bytes
+        typedef  struct PiToStm32
+        {
+            __IO uint8_t 	Frame_Head[7];
+            __IO uint8_t 	Metor[16];
+            __IO uint8_t	DigitalLED[16];
+            __IO uint8_t	DO[4];
+            __IO uint8_t	Frame_Tail[7];
+        }SPI1_PiToStm32_TypeDef;
+    ----
+    MCU to PI command words: total 50 bytes
+    typedef struct Stm32ToPi
+    {
+        __IO uint8_t 	Frame_Head[7];
+        __IO uint16_t 	AI[11];
+        __IO uint8_t	DI[4];
+        __IO uint8_t	bak[10];
+        __IO uint8_t	Frame_Tail[7];
+    }SPI1_Stm32ToPi_TypeDef;
 """
-import serial
+# import serial
 from struct import pack, unpack
 import sys
 import modbus_tk
@@ -37,7 +57,7 @@ from modbus_tk import modbus_tcp
 import RPi.GPIO as GPIO
 import threading
 import time
-import spidev
+# import spidev
 import itertools
 import copy
 import socket
@@ -46,8 +66,13 @@ from periphery import SPI
 import queue
 import random
 
-commandsend = b'UUUU3'  # Pi to MCU command words
-commandrecv = b'UUUU4'  # MCU to Pi command words
+# PitoStm32FrameHead = b'UUUUUUU'  # Pi to MCU command words
+# PitoStm32FrameTail = "\x55\x55\x55\x55\x55\x55\x55"
+PitoStm32FrameHead = ["\x55"]*7
+PitoStm32FrameTail = ["\xAA"]*7
+
+commandrecv = b'UUUUUUU'  # MCU to Pi command words
+# frametail = b'UUUUUUU'
 
 
 class modbusserver(object):
@@ -62,8 +87,10 @@ class modbusserver(object):
         # self.spi.max_speed_hz = 1000000
         # self.spi.cshigh = False
         self.spi = SPI("/dev/spidev0.0", 1, 125000)
-        self.senddata = [0] * 41
-        self.recvdata = [0] * 41
+        # self.senddata = [0] * 41
+        # self.recvdata = [0] * 41
+        self.senddata = [0] * 36
+        self.recvdata = [0] * 50
         self.metor_value = [0] * 16
         self.last_metor_value = [0] * 16
         self.coils_value = None
@@ -83,16 +110,24 @@ class modbusserver(object):
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(7, GPIO.IN)
 
+        self.PitoStm32FrameHead = [0x55] * 7
+        self.PitoStm32FrameTail = [0xaa] * 7
+
     def sendtomcu(self):
         # add command word "UUUU3"
-        self.senddata[0:5] = commandsend
+        # self.senddata[0:5] = PitoStm32FrameHead
+        # add frame head and tail at last 2021.10.19
+
         # get metor from PC
         self.metor_value = list(self.slave.get_values('HOLDING_REGISTERS', 0, 16))
         # print("metor", self.metor_value)
         if (self.metor_value != self.last_metor_value):
             for i in range(0, 16):
-                self.senddata[2 * i + 5] = self.metor_value[i] & 0xff
-                self.senddata[2 * i + 5 + 1] = self.metor_value[i] >> 8
+                # self.senddata[i*2] = self.metor_value[i] & 0xff
+                # self.senddata[i*2 + 1] = self.metor_value[i] >> 8
+                # for test:
+                self.senddata[i*2] = "\x36"
+                self.senddata[i*2 + 1] = "\x36"
             self.last_metor_value = copy.copy(self.metor_value)
 
         # get lamp from PC
@@ -114,20 +149,30 @@ class modbusserver(object):
                         self.led[i] = self.led[i] >> 1
 
             # package senddata
-            self.senddata[37] = self.led[0]
-            self.senddata[38] = self.led[1]
-            self.senddata[39] = self.led[2]
-            self.senddata[40] = self.led[3]
+            # self.senddata[32] = self.led[0]
+            # self.senddata[33] = self.led[1]
+            # self.senddata[34] = self.led[2]
+            # self.senddata[35] = self.led[3]
+            # for test
+            for i in range(0, 16):
+                self.senddata[i*2] = 0x36
+                self.senddata[i*2 + 1] = 0x36
+            self.senddata[32] = 0x89
+            self.senddata[33] = 0x89
+            self.senddata[34] = 0x89
+            self.senddata[35] = 0x89
+            print(self.senddata)
             self.last_coils_value = copy.copy(self.coils_value)
 
-        # print("senddata = ", self.senddata)
-        # Master start SPI transport
-        # GPIO.output(7, GPIO.LOW)
-        # self.recvdata = self.spi.xfer2(self.senddata, 0, 90000, 8)
-        # self.recvdata = self.spi.xfer2(self.senddata)
-        self.recvdata = self.spi.transfer(self.senddata)
-        # GPIO.output(7, GPIO.HIGH)
-        # print("recvdata", self.recvdata)
+        #add frame head and tail
+        self.PitoStm32FrameHead = [0x55] * 7
+        self.PitoStm32FrameHead.extend(self.senddata)
+        self.PitoStm32FrameHead.extend(self.PitoStm32FrameTail)
+
+        self.recvdata = self.spi.transfer(self.PitoStm32FrameHead)
+        self.PitoStm32FrameHead.pop(43)
+        # self.recvdata = self.spi.transfer(self.senddata)
+
 
     # analysis receive data
     def recvmcu(self):
@@ -157,7 +202,7 @@ class modbusserver(object):
                 self.key[0:8] = self.key_tmp[0]
                 self.key[8:16] = self.key_tmp[1]
                 self.key[16:24] = self.key_tmp[2]
-                self.key[24:32] = self.key_tmp[3]                # package recvdaa
+                self.key[24:32] = self.key_tmp[3]  # package recvdaa
                 self.slave.set_values('DISCRETE_INPUTS', 0, self.key)
 
         # print("ai = ", self.ai)
@@ -199,9 +244,12 @@ def main():
         while True:
             if GPIO.input(7) == GPIO.LOW:
                 pcontroller.sendtomcu()
-                pcontroller.recvmcu()
+                # pcontroller.recvmcu()
                 time.sleep(0.01)
-
+    except Exception as e:
+        print(e.args)
+        print(str(e))
+        print(repr(e))
     finally:
         server.stop()
         GPIO.cleanup()
