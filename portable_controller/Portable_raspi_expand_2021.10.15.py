@@ -112,6 +112,12 @@ class modbusserver(object):
 
         self.PitoStm32FrameHead = [0x55] * 7
         self.PitoStm32FrameTail = [0xaa] * 7
+        self.spiTotalTransCount = 0
+        # spiFrameHTCheckOKCount : head and Tail check
+        self.spiFrameHTCheckOKCount = 0
+        self.t1=0
+        self.t2=0
+
 
     def sendtomcu(self):
         # add command word "UUUU3"
@@ -119,15 +125,17 @@ class modbusserver(object):
         # add frame head and tail at last 2021.10.19
 
         # get metor from PC
+        if self.spiTotalTransCount % 1000 == 0 or self.spiTotalTransCount == 0:
+            self.t1 = time.time()
         self.metor_value = list(self.slave.get_values('HOLDING_REGISTERS', 0, 16))
         # print("metor", self.metor_value)
         if (self.metor_value != self.last_metor_value):
             for i in range(0, 16):
-                # self.senddata[i*2] = self.metor_value[i] & 0xff
-                # self.senddata[i*2 + 1] = self.metor_value[i] >> 8
+                self.senddata[i*2] = self.metor_value[i] & 0xff
+                self.senddata[i*2 + 1] = self.metor_value[i] >> 8
                 # for test:
-                self.senddata[i*2] = "\x36"
-                self.senddata[i*2 + 1] = "\x36"
+                # self.senddata[i*2] = "\x36"
+                # self.senddata[i*2 + 1] = "\x36"
             self.last_metor_value = copy.copy(self.metor_value)
 
         # get lamp from PC
@@ -149,19 +157,19 @@ class modbusserver(object):
                         self.led[i] = self.led[i] >> 1
 
             # package senddata
-            # self.senddata[32] = self.led[0]
-            # self.senddata[33] = self.led[1]
-            # self.senddata[34] = self.led[2]
-            # self.senddata[35] = self.led[3]
+            self.senddata[32] = self.led[0]
+            self.senddata[33] = self.led[1]
+            self.senddata[34] = self.led[2]
+            self.senddata[35] = self.led[3]
             # for test
-            for i in range(0, 16):
-                self.senddata[i*2] = 0x36
-                self.senddata[i*2 + 1] = 0x36
-            self.senddata[32] = 0x89
-            self.senddata[33] = 0x89
-            self.senddata[34] = 0x89
-            self.senddata[35] = 0x89
-            print(self.senddata)
+            # for i in range(0, 16):
+            #     self.senddata[i*2] = 0x36
+            #     self.senddata[i*2 + 1] = 0x36
+            # self.senddata[32] = 0x89
+            # self.senddata[33] = 0x89
+            # self.senddata[34] = 0x89
+            # self.senddata[35] = 0x89
+            # print(self.senddata)
             self.last_coils_value = copy.copy(self.coils_value)
 
         #add frame head and tail
@@ -170,6 +178,15 @@ class modbusserver(object):
         self.PitoStm32FrameHead.extend(self.PitoStm32FrameTail)
 
         self.recvdata = self.spi.transfer(self.PitoStm32FrameHead)
+        self.spiTotalTransCount += 1
+        if self.spiTotalTransCount % 1000 == 0:
+            self.t2 = time.time()
+            successRate = self.spiFrameHTCheckOKCount / self.spiTotalTransCount
+            print("TotalTransCount %d, FrameCheckSuccess %d, Sucess rate %0.3f"\
+                  % (self.spiTotalTransCount,\
+                     self.spiFrameHTCheckOKCount,\
+                     successRate))
+            print("Current Sample Rate %d Samples/sec" % int((1000/(self.t2-self.t1))))
         self.PitoStm32FrameHead.pop(43)
         # self.recvdata = self.spi.transfer(self.senddata)
 
@@ -177,9 +194,10 @@ class modbusserver(object):
     # analysis receive data
     def recvmcu(self):
         # check command word
-        if (self.recvdata[0:5] == list(commandrecv)):
+        if self.recvdata[0:7] == ([0x55]*7) and self.recvdata[43:50] == ([0xaa]*7):
+            self.spiFrameHTCheckOKCount += 1
             for i in range(0, 22):
-                self.ai_value[i] = self.recvdata[i + 5]
+                self.ai_value[i] = self.recvdata[i + 7]
             if (self.ai_value != self.last_ai_value):
                 for i in range(0, 11):
                     self.ai[i] = (self.ai_value[2 * i] & 0xff) + (self.ai_value[2 * i + 1] << 8)
@@ -187,7 +205,7 @@ class modbusserver(object):
                     self.last_ai_value = copy.copy(self.ai_value)
 
             for i in range(0, 4):
-                self.key_value[i] = self.recvdata[i + 27]
+                self.key_value[i] = self.recvdata[i + 29]
             # change key to list from byte
             if (self.key_value != self.last_key_value):
                 self.last_key_value = copy.copy(self.key_value)
@@ -244,7 +262,7 @@ def main():
         while True:
             if GPIO.input(7) == GPIO.LOW:
                 pcontroller.sendtomcu()
-                # pcontroller.recvmcu()
+                pcontroller.recvmcu()
                 time.sleep(0.01)
     except Exception as e:
         print(e.args)
