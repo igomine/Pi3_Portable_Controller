@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-
+import datetime
 # 引用 paddle inference 预测库
 import paddle.inference as paddle_infer
 
@@ -135,23 +135,17 @@ negative_data_path_7 = normal_data_path + "2021_11_05_14_40_3000_spped_n.npz"
 negative_data_path_8 = normal_data_path + "2021_11_05_16_42_3000_spped_n.npz"
 negative_data_path_9 = normal_data_path + "2021_11_05_17_41_3000_spped_n.npz"
 
+positive_data = np.load(positive_data_path)
+posdata = positive_data['arr_0']
+fake_pos = posdata[27355]
+negative_data_1 = np.load(negative_data_path_1)
+negative_data_1 = negative_data_1['arr_0']
+# print("negative_data_1.shape", negative_data_1.shape)
+fake_neg = negative_data_1[573]
+
 def main():
-    # load data
-    positive_data = np.load(positive_data_path)
-    posdata = positive_data['arr_0']
-    print("posdata.shape", posdata.shape)
-    fake_pos = posdata[16855]
-
-    negative_data_1 = np.load(negative_data_path_1)
-    negative_data_1 = negative_data_1['arr_0']
-    print("negative_data_1.shape", negative_data_1.shape)
-    fake_neg = negative_data_1[555]
-
-    # print("fake_neg.shape", fake_neg.shape)
-    # print(fake_pos)
-
+    print("begin", datetime.datetime.now())
     args = parse_args()
-
     # 创建 config
     config = paddle_infer.Config(args.model_file, args.params_file)
     # config = paddle_infer.Config(model_file_path, params_file_path)
@@ -163,39 +157,43 @@ def main():
     input_handle = predictor.get_input_handle(input_names[0])
 
     fake_input = np.array(fake_pos)
-    print("fake_input.shape", fake_input.shape)
-    print("fake_input", fake_input)
+    # print("fake_input.shape", fake_input.shape)
+    # print("fake_input", fake_input)
 
     fake_input = (fake_input - traindata_mean)/traindata_std
-    print("fake_input,std", fake_input)
+    # print("fake_input,std", fake_input)
     # fake_input = np.reshape(fake_input, (1, 19, 16))
     fake_input = np.expand_dims(fake_input, axis=0)
-    print("fake_input.shape", fake_input.shape)
+    # print("fake_input.shape", fake_input.shape)
     # copy_input = fake_input
     # for i in range(31):
     #     fake_input = np.append(fake_input, copy_input, axis=0)
     fake_input = np.float32(fake_input)
 
-    print("fake_input.dtype", fake_input.dtype)
+    # print("fake_input.dtype", fake_input.dtype)
 
     input_handle.reshape([args.batch_size, 19, 16])
     input_handle.copy_from_cpu(fake_input)
-
+    print("predictor.run() begin", datetime.datetime.now())
     # 运行predictor
     predictor.run()
+    print("predictor.run() end", datetime.datetime.now())
 
     # 获取输出
     output_names = predictor.get_output_names()
     output_handle = predictor.get_output_handle(output_names[0])
     output_data = output_handle.copy_to_cpu()  # numpy.ndarray类型
+
+    print("end", datetime.datetime.now())
+
     print("Output data size is {}".format(output_data.size))
     print("Output data shape is {}".format(output_data.shape))
     print("output_data", output_data)
     print("=====================")
     if output_data[0][0] > output_data[0][1]:
-        print("Coupling Dectect")
+        print("Coupling is Not Dectected")
     else:
-        print("Coupling Not Dectect")
+        print("Coupling is  Dectected")
 
 
 def parse_args():
