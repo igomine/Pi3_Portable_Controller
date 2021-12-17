@@ -1,13 +1,10 @@
 '''
-predict all the pos data
+predict all the neg data
 to find out the acc of model in inference mode, and time of inference for each sample
-2021.12.14
+2021.12.17
 
-2021.12.17:
-if data is not normarlized
-result is :"total 49152 samples, 44189 is detected, and 4963 is Not detected, acc 0.90, predict rate 0.145 ms/sample"
-else, after normarlize
-result is"total 49152 pos samples, 48603 is detected, and 549 is Not detected, acc 0.99, predict rate 0.146 ms/sample"
+result:"total 105600 neg samples, 444 is detected, and 105156 is Not detected, acc 1.00, predict rate 0.139 ms/sample"
+
 '''
 import argparse
 import numpy as np
@@ -150,14 +147,47 @@ negative_data_path_7 = normal_data_path + "2021_11_05_14_40_3000_spped_n.npz"
 negative_data_path_8 = normal_data_path + "2021_11_05_16_42_3000_spped_n.npz"
 negative_data_path_9 = normal_data_path + "2021_11_05_17_41_3000_spped_n.npz"
 
-positive_data = np.load(positive_data_path)
-posdata = positive_data['arr_0']
-print("posdata.shape", posdata.shape)
+negative_data_1 = np.load(negative_data_path_1)
+negative_data_1 = negative_data_1['arr_0']
 
-posdata = np.array(posdata)
-posdata = (posdata - traindata_mean) / traindata_std
-# fake_input = np.expand_dims(fake_input, axis=0)
-posdata = np.float32(posdata)
+negative_data_2 = np.load(negative_data_path_2)
+negative_data_2 = negative_data_2['arr_0']
+
+negative_data_3 = np.load(negative_data_path_3)
+negative_data_3 = negative_data_3['arr_0']
+
+negative_data_4 = np.load(negative_data_path_4)
+negative_data_4 = negative_data_4['arr_0']
+
+negative_data_5 = np.load(negative_data_path_5)
+negative_data_5 = negative_data_5['arr_0']
+
+negative_data_6 = np.load(negative_data_path_6)
+negative_data_6 = negative_data_6['arr_0']
+
+negative_data_7 = np.load(negative_data_path_7)
+negative_data_7 = negative_data_7['arr_0']
+
+negative_data_8 = np.load(negative_data_path_8)
+negative_data_8 = negative_data_8['arr_0']
+
+negative_data_9 = np.load(negative_data_path_9)
+negative_data_9 = negative_data_9['arr_0']
+
+negdata = np.concatenate((negative_data_1,
+                          negative_data_2,
+                          negative_data_3,
+                          negative_data_4,
+                          negative_data_5,
+                          negative_data_6,
+                          negative_data_7,
+                          negative_data_8,
+                          negative_data_9,),
+                            axis=0)
+
+print("negdata.shape", negdata.shape)
+negdata = (negdata - traindata_mean) / traindata_std
+negdata = np.float32(negdata)
 
 
 def couplingdetect(input_handle, output_handle, batch_data, predictor):
@@ -173,7 +203,7 @@ def couplingdetect(input_handle, output_handle, batch_data, predictor):
 
 def main():
 
-    # print("begin", datetime.datetime.now())
+    print("begin", datetime.datetime.now())
     # args = parse_args()
     # 创建 config
     config = paddle_infer.Config("./export_model.pdmodel", "./export_model.pdiparams")
@@ -192,9 +222,9 @@ def main():
     t1 = datetime.datetime.now()
     print("predictor.run() begin", datetime.datetime.now())
     # print("len(posdata)/batch_size",len(posdata)//batch_size)
-    for i in range(len(posdata)//batch_size):
-        input_data = posdata[i*32:(i+1)*32]
-        # input_data = np.float32(input_data)
+    for i in range(len(negdata)//batch_size):
+        input_data = negdata[i*32:(i+1)*32]
+        input_data = np.float32(input_data)
         output_data = couplingdetect(input_handle, output_handle, input_data, predictor)
         for result in output_data:
             if result[0] > result[1]:
@@ -202,14 +232,14 @@ def main():
             else:
                 pos_result_count += 1
     t2 = datetime.datetime.now()
-    print("predictor.run() end", datetime.datetime.now())
     delta_t = t2.timestamp()-t1.timestamp()
     print("delta_t", delta_t)
-    print("total %d pos samples, %d is detected, and %d is Not detected, acc %.2f, predict rate %.3f ms/sample" %
+    print("end", datetime.datetime.now())
+    print("total %d neg samples, %d is detected, and %d is Not detected, acc %.2f, predict rate %.3f ms/sample" %
           ((neg_result_count+pos_result_count),
            pos_result_count,
            neg_result_count,
-           (pos_result_count/(neg_result_count+pos_result_count)),
+           (neg_result_count/(neg_result_count+pos_result_count)),
            (delta_t*1000/(neg_result_count+pos_result_count))))
 
 
